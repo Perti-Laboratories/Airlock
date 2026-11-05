@@ -1,0 +1,4 @@
+Synthetic company memory acceptance fixture. This is invented test data.
+Project Cedar launches on December 3, 2026.
+The company-only rollout code for Project Cedar is CEDAR_INTERNAL_7429.
+Mira Example owns the Project Cedar launch preparation.

@@ -1,0 +1,12 @@
+{
+  "version": "0.2.0",
+  "sha256": {
+    "README.md": "842b766d7b104c16f2693bf7741e1710ea3a4ab04ea3e1d68fd7711b2d283339",
+    "pyproject.toml": "002bd1b37abb35765849a738fe7252468fca43d3643a8c58fd4e86919a8bebfe",
+    "src/airlock_core/__init__.py": "f16691c23e54cf623c1ea0951b20846bc2448b71079bcdbf8a4d06cbc7797c49",
+    "src/airlock_core/agents.py": "76e7a38c9ca69b1f8dd5ac8e15408adb21f247f1c9229cfcbd725b680b7f784f",
+    "src/airlock_core/calendar.py": "7a76510da75b588d6ac675dbcdd4067a4b806a1e72d9096f7d1ae74c1ff45b35",
+    "src/airlock_core/llm.py": "fa10681477ad5d1065b9a6f622ef6e62dfc8481ebf9e410ea563ac72d57a702a",
+    "src/airlock_core/memory.py": "2f741374d1be4a20242c66b2cf0526cf4bef232d101d312fa814a5463d3cfb5f"
+  }
+}

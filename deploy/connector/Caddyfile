@@ -1,0 +1,16 @@
+{$AIRLOCK_CONNECTOR_HOST} {
+    request_body {
+        max_size 1MB
+    }
+    header {
+        Strict-Transport-Security "max-age=31536000"
+        X-Content-Type-Options "nosniff"
+        -Server
+    }
+    # No request-body, credential or access logging. Administration has no HTTP route.
+    @api path /health /v1/pair /v1/releases /v1/inbox /v1/inbox/ack /v1/harness/*
+    handle @api {
+        reverse_proxy connector:8742
+    }
+    respond 404
+}

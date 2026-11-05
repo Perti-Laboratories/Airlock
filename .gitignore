@@ -1,0 +1,33 @@
+.DS_Store
+.env
+.env.*
+!.env.example
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+*.egg-info/
+node_modules/
+dist/
+build/
+coverage/
+.coverage
+data/
+artifacts/
+logs/
+models/
+*.log
+*.db
+*.sqlite*
+*.pem
+*.key
+# Downloaded OAuth client configuration belongs in Keychain, never in source control.
+client_secret*.json
+credentials*.json
+# Distributor-provided app registration may be included in a private build, never in Git.
+src/airlock/google_desktop_client.json
+
+# Pairing and harness credentials are local-only.
+invitation.json
+harness.json

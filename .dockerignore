@@ -1,0 +1,15 @@
+**
+!connector/
+!connector/pyproject.toml
+!src/
+!src/airlock_contracts/
+!src/airlock_contracts/**
+!src/airlock_connector/
+!src/airlock_connector/**
+!deploy/
+!deploy/connector/
+!deploy/connector/Dockerfile
+!deploy/connector/Dockerfile.render
+**/__pycache__
+**/*.pyc
+!requirements.lock

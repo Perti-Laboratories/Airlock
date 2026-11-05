@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Airlock · Local workspace</title>
+  <link rel="icon" href="/static/icon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/static/style.css">
+  <script defer src="/static/research.js"></script>
+  <script defer src="/static/app.js"></script>
+  <script defer src="/static/workspace.js"></script>
+  <script defer src="/static/controls.js"></script>
+  <script defer src="/static/exchange.js"></script>
+  <script defer src="/static/knowledge.js"></script>
+  <script defer src="/static/company.js"></script>
+</head>
+<body>
+  <aside class="sidebar">
+    <a class="brand" href="/"><img src="/static/icon.svg" alt="" width="32" height="32">airlock<span>0.6.0</span></a>
+    <nav aria-label="Main navigation">
+      <button class="nav active" data-view="chat"><span>◉</span> Chat</button>
+      <button class="nav" data-view="calendar"><span>▦</span> Calendar</button>
+      <button class="nav" data-view="todos"><span>✓</span> To-dos</button>
+      <button class="nav" data-view="contacts"><span>◎</span> Contacts</button>
+      <button class="nav" data-view="memory"><span>▧</span> Memory <span id="nav-count" class="count">0</span></button>
+      <button class="nav" data-view="agents"><span>◇</span> Agents</button>
+      <button class="nav" data-view="company"><span>▤</span> Company memory</button>
+      <button class="nav" data-view="sharing"><span>⇄</span> Sharing</button>
+      <button class="nav" data-view="settings"><span>⚙</span> Settings &amp; Activity</button>
+    </nav>
+    <div class="sidebar-foot"><span class="local-dot"></span><div>Stored on this Mac<small><span id="exchange-banner">External exchange is off</span></small></div></div>
+  </aside>
+  <main>
+    <header class="topbar"><div><span class="eyebrow">AIRLOCK</span><h1 id="view-title">Chat</h1></div><div class="status-pill"><span id="status-dot" class="local-dot"></span><span id="model-status">Connecting locally…</span></div></header>
+    <div id="banner" role="alert" hidden></div>
+    <section id="chat-view" class="chat-layout">
+      <div class="chat-column">
+        <div class="chat-actions"><span id="feed-label">Your assistant</span><button id="feed-acknowledge-all" type="button" class="text-button" hidden>Acknowledge all</button><button id="feed-latest" type="button" class="text-button" hidden>Latest</button><button id="feed-history" type="button" class="text-button" aria-pressed="false">History</button></div><p id="feed-status" class="muted" role="status" hidden></p>
+        <div id="transcript" class="transcript" aria-live="polite" aria-label="Assistant feed">
+          <div id="welcome" class="welcome"><p>Ask a question, save a memory, or update your items.</p><div class="starters"><button data-prompt="Remember that I prefer short morning meetings.">Remember a preference <span>↗</span></button><button data-prompt="What do you remember about my preferences?">Recall something <span>↗</span></button></div></div>
+        </div>
+        <div id="chat-progress" class="chat-progress" role="status" aria-live="polite" aria-label="Research progress" hidden></div><div class="composer-wrap"><div id="thinking" class="thinking" role="status" hidden><span class="spinner"></span>Thinking locally…</div><form id="chat-form" class="composer"><input id="chat-upload" type="file" accept=".txt,.md,.csv,.pdf,.docx,.eml" hidden><div id="chat-attachments" hidden></div><p id="upload-status" role="status" hidden></p><label class="sr-only" for="message">Message Airlock</label><textarea id="message" rows="2" placeholder="Message Airlock…" maxlength="8000" required></textarea><div class="composer-bottom"><div class="composer-tools"><button id="upload-document" type="button" aria-label="Attach document" title="Attach document · PDF, DOCX, TXT, MD, CSV or EML · up to 2 MB">+</button><label class="local-only"><input id="chat-local-only" type="checkbox">Local only</label><span id="model-label">Ollama · local inference</span></div><button id="send" type="submit" aria-label="Send message">↑</button></div></form></div>
+      </div>
+      <aside class="context-panel"><div class="panel-heading"><h2>Memory</h2><button id="open-memory" class="text-button">View all ↗</button></div><p class="muted">Useful details, kept for next time.</p><div id="pending-summary" hidden></div><div id="memory-preview"></div></aside>
+    </section>
+    <section id="memory-view" class="page-view" hidden><div class="page-intro"><div><h2>Memory</h2><p>Saved facts and preferences.</p></div><button id="add-memory" class="primary">+ Add memory</button></div><div id="proposals"></div><div id="memory-list" class="memory-grid"></div><p class="retention-note">Forgotten memories leave active context. Historical conversations are retained.</p></section>
+    <section id="calendar-view" class="page-view" hidden>
+      <div class="page-intro"><div><h2>Calendar</h2><p>Your events and connected calendars.</p></div><button id="add-event" class="primary">+ Add event</button></div>
+      <div class="calendar-toolbar"><button id="calendar-prev" class="secondary" aria-label="Previous month">←</button><h3 id="calendar-month"></h3><button id="calendar-next" class="secondary" aria-label="Next month">→</button><button id="calendar-today" class="secondary">Today</button><label>Timezone <select id="calendar-zone"><option>America/New_York</option><option>America/Chicago</option><option>America/Denver</option><option>America/Los_Angeles</option><option>Europe/London</option><option>UTC</option></select></label></div>
+      <p id="incoming-availability-status" role="status"></p><div id="calendar-grid" class="calendar-grid" aria-label="Month calendar"></div><div class="agenda-heading"><h3 id="agenda-heading">Upcoming events</h3><button id="show-month" class="text-button">Show full month</button></div><div id="calendar-agenda"></div>
+      <button id="calendar-connections" class="text-button">Manage connected calendars ↗</button>
+    </section>
+    <section id="agents-view" class="page-view" hidden>
+      <div class="page-intro"><div><h2>Agents</h2><p>Ask your local team to help.</p></div><button id="refresh-runs" class="secondary">Refresh</button></div>
+
+      <form id="agent-form" class="agent-form"><label for="agent-instruction">What should the local team work on?</label><textarea id="agent-instruction" rows="3" maxlength="4000" placeholder="Review my upcoming week and suggest what to prepare." required></textarea><div class="dialog-actions"><button type="button" id="schedule-agent" class="secondary">Schedule this task</button><button class="primary" id="run-agents">Run local agents</button></div></form><p class="muted">Agents read local memory and calendar. Runs may take a few minutes.</p><h3>Runs</h3><div id="agent-runs"></div><h3>Schedules</h3><div id="agent-schedules"></div>
+    </section>
+
+    <section id="company-view" class="page-view" hidden>
+      <div class="page-intro"><div><h2>Company memory</h2><p id="company-status">Optional company knowledge connection.</p></div><button id="company-refresh" class="secondary">Refresh</button></div>
+      <article class="control-card"><label class="checkbox"><input type="checkbox" id="company-automatic" checked> Automatically research company memory in chat</label><p class="muted">Airlock chooses searches locally from company topics. Private messages and local context stay on this Mac.</p><label class="checkbox"><input type="checkbox" id="company-extraction"> Suggest memories from selected sources</label><button id="company-connect" class="primary">Connect local demo</button><label class="checkbox" id="company-enabled-label" hidden><input id="company-enabled" type="checkbox"> Connection enabled</label><button id="company-save" class="secondary" hidden>Save settings</button><p id="company-notice" role="status"></p>
+      <details><summary>Connection & processing details</summary><pre id="company-details"></pre><p>Suggestions and embeddings are created locally. Sending a candidate requires your review; publication requires company-side review. No automatic uploads.</p><button id="company-run" class="secondary">Process next passage</button><a href="http://127.0.0.1:8744/" target="_blank" rel="noopener">Open company review console ↗</a></details></article>
+      <details><summary>Select sources for suggestions</summary><p>Choose only company-eligible original material. Selection keeps these sources and unacknowledged exchanges that use them read-only for chat actions, even if later unselected.</p><div id="company-sources"></div></details>
+      <h3>Memory suggestions</h3><p class="muted">Review the exact text and supporting evidence before sending it to the company.</p><div id="company-candidates"></div>
+    </section>
+    <section id="sharing-view" class="page-view" hidden>
+  <article class="sharing-summary" aria-label="Outbound sharing">
+    <div><span class="eyebrow">OUTBOUND SHARING</span><h2 id="sharing-status">Checking connection…</h2><p id="sharing-hint" role="status"></p><a id="exchange-harness-link" href="http://127.0.0.1:8743/" target="_blank" rel="noopener" hidden>Open reference harness ↗</a></div>
+    <button id="sharing-toggle" class="primary" disabled>Resume sharing</button>
+  </article>
+  <p id="sharing-result" role="status" hidden></p>
+  <p id="exchange-records" class="muted" role="status"></p>
+  <details id="exchange-pairing" class="control-card"><summary>Pair a connector</summary><p>Import the invitation supplied by your connector.</p><label for="exchange-invitation">Invitation file</label><input id="exchange-invitation" type="file" accept=".json,application/json"><button id="exchange-pair" class="secondary">Pair connector</button></details>
+  <form id="release-policy-form" class="control-card">
+    <div class="panel-heading"><h3>What can leave</h3><button id="release-save" class="primary" disabled>Save rules</button></div>
+    <input id="release-paused" type="checkbox" hidden checked>
+    <div id="release-type-rules"></div>
+    <details class="inline-help"><summary>Calendar sources &amp; limits</summary><p>A source must be allowed here to share its events. Event reviews may approve exceptions, within the Calendar level above.</p><div id="release-source-rules"></div></details>
+    <label id="release-title-confirmation" class="checkbox" hidden><input id="release-title-ack" type="checkbox">Allow original meeting titles to leave.</label>
+    <p class="muted">Levels above limit every release, including reviewed exceptions. Calendar details, to-do notes, and attendees stay private. Each to-do still needs its own review.</p>
+    <button id="sharing-todos" type="button" class="text-button">Review to-do sharing ↗</button><p id="release-save-status" role="status"></p>
+  </form>
+  <details class="control-card" id="connection-options"><summary>Connection &amp; incoming availability</summary>
+    <form id="exchange-form"><p id="exchange-status"></p>
+      <label class="checkbox"><input id="exchange-enabled" type="checkbox">Connection enabled</label>
+      <label class="checkbox"><input id="exchange-inbound" type="checkbox">Show incoming “Unavailable” blocks</label>
+      <p class="muted">Incoming blocks appear only in Airlock. Google Calendar stays read-only.</p>
+      <div class="connector-actions"><button id="exchange-save" class="secondary">Save connection</button><button id="exchange-sync" type="button" class="secondary">Sync now</button></div>
+    </form><p id="exchange-details" class="muted" role="status"></p>
+    <details class="inline-help"><summary>About pausing and disconnecting</summary><p>Pausing withdraws released records on the next successful sync. Disconnecting stops all exchange; the receiver’s active view expires within 15 minutes. Copies already received cannot be recalled.</p></details>
+  </details>
+  <div class="agenda-heading"><div><h3>Calendar preview</h3><span id="release-preview-count" class="muted"></span></div><button id="refresh-releases" class="secondary">Refresh</button></div>
+  <div id="release-preview"></div>
+</section>
+
+<section id="todos-view" class="page-view" hidden><div class="page-intro"><div><h2>To-dos</h2><p>Your tasks, kept in one place.</p></div><button id="add-todo" class="primary">Add to-do</button><button id="refresh-todos" class="secondary">Refresh</button></div><div id="todo-list"></div></section>
+
+
+
+<section id="contacts-view" class="page-view" hidden><div class="page-intro"><div><h2>Contacts</h2><p>People, notes and interactions.</p></div><button id="add-contact" class="primary">Add contact</button></div><form id="contact-search-form" class="inline-controls"><label for="contact-search">Find a person</label><input id="contact-search" maxlength="240" placeholder="Name, organization or email"><button class="secondary">Search</button></form><div id="contact-list"></div></section>
+
+<section id="settings-view" class="page-view" hidden>
+<div class="settings-tabs" role="tablist" aria-label="Settings sections">
+  <button id="tab-models" role="tab" data-settings="models" aria-controls="models-view" aria-selected="true">General</button>
+  <button id="tab-connections" role="tab" data-settings="connections" aria-controls="connections-view" aria-selected="false" tabindex="-1">Connections</button>
+  <button id="tab-sources" role="tab" data-settings="sources" aria-controls="sources-view" aria-selected="false" tabindex="-1">Sources</button>
+  <button id="tab-activity" role="tab" data-settings="activity" aria-controls="activity-view" aria-selected="false" tabindex="-1">Activity</button>
+</div>
+<section id="models-view" class="settings-panel" role="tabpanel" aria-labelledby="tab-models">
+  <form id="model-form" class="control-card"><div class="panel-heading"><h3>Local model</h3><button id="refresh-models" type="button" class="text-button">Refresh models</button></div><label for="chat-model-choice">Chat &amp; agents</label><div class="inline-controls"><select id="chat-model-choice" required></select><button id="save-model" class="primary">Save model</button></div><p id="model-choice-status" role="status"></p><p id="embedding-choice" class="muted"></p><details class="inline-help"><summary>Add another model</summary><p>Install it in Ollama, then refresh this list. Changing the chat model preserves your memory.</p></details></form>
+</section>
+<section id="connections-view" class="settings-panel" role="tabpanel" aria-labelledby="tab-connections" hidden>
+      <div class="page-intro"><div><h2>Connections</h2></div><button id="refresh-connections" class="secondary">Refresh</button></div>
+      <form id="workspace-form" class="control-card"><label for="workspace-name">Local workspace name</label><div class="inline-controls"><input id="workspace-name" maxlength="160" required><button class="secondary">Save name</button></div></form>
+      <article class="control-card"><div class="panel-heading"><h3>Google Calendar</h3><span class="memory-type">Read only</span></div><p id="google-status" role="status">Checking connection…</p><p id="google-account"></p>
+        <div class="connector-actions"><button id="connect-google" class="primary">Connect Google</button><button id="reauthorize-google" class="secondary" hidden>Reconnect Google</button><button id="list-google" class="secondary">Choose calendars</button><button id="disconnect-google" class="secondary">Disconnect</button></div><p id="google-signin-status" role="status"></p><a id="google-auth-link" target="_blank" rel="noopener noreferrer" hidden>Open Google sign-in</a>
+        <p class="muted">Choose which calendars Airlock can read.</p><p id="google-setup-pending" class="release-notice" hidden>This build still needs its Airlock Google app registration. Once provisioning is complete, Connect Google will become available. You do not need to create a new app for each account.</p><p id="google-next-step" role="status"></p>
+        <details id="google-client-setup"><summary>Advanced · custom Google app</summary><p>Use a custom Desktop client only if your installation needs one.</p><label for="google-client-file">Desktop client JSON</label><input id="google-client-file" type="file" accept=".json,application/json"><button id="save-google-client" class="secondary">Save app configuration</button><p id="google-config-result" role="status"></p></details>
+        <div id="google-choices"></div><div id="calendar-sources"></div>
+      </article>
+
+    </section>
+<section id="sources-view" class="settings-panel" role="tabpanel" aria-labelledby="tab-sources" hidden><div class="page-intro"><div><h2>Sources</h2><p>Local context available to chat.</p></div><button id="refresh-sources" class="secondary">Refresh</button></div><div id="source-list"></div></section>
+<section id="activity-view" class="settings-panel" role="tabpanel" aria-labelledby="tab-activity" hidden><div class="page-intro"><div><h2>Activity</h2></div><button id="refresh-activity" class="secondary">Refresh</button></div><div id="activity-list"></div></section>
+</section>
+  </main>
+<dialog id="todo-editor"><form id="todo-form"><div class="dialog-heading"><h2>Local to-do</h2><button class="close-dialog" type="button" aria-label="Close">×</button></div><label for="todo-title">Title</label><input id="todo-title" maxlength="240" required><label for="todo-description">Private details & notes</label><textarea id="todo-description" maxlength="4000"></textarea><label for="todo-due">Due (this computer's timezone)</label><input id="todo-due" type="datetime-local"><label for="todo-priority">Priority</label><select id="todo-priority"><option>low</option><option selected>normal</option><option>high</option><option>urgent</option></select><label for="todo-status">Status</label><select id="todo-status"><option value="open">Open</option><option value="done">Completed</option><option value="archived">Archived</option></select><p id="todo-error" role="alert"></p><button class="primary">Save to-do</button></form></dialog>
+<dialog id="todo-release-dialog"><form id="todo-release-form"><div class="dialog-heading"><h2>Review to-do release</h2><button class="close-dialog" type="button" aria-label="Close">×</button></div><p id="todo-release-name"></p><label for="todo-release-title">Allowed title (leave empty to keep private)</label><input id="todo-release-title" maxlength="160"><label class="checkbox"><input id="todo-release-due" type="checkbox">Also release the due date and time, including future changes</label><p>Status updates accompany the fixed approved title automatically. Details, priority, owner and source references stay local. Title or detail edits require another review. The master release pause also applies.</p><p id="todo-release-error" role="alert"></p><button class="primary">Save review</button></form></dialog>
+<dialog id="todo-delete-dialog"><h2>Delete this to-do?</h2><p id="todo-delete-name"></p><p>Removes it from the active list. Enabled exchange withdraws its projection; local audit history remains.</p><button class="close-dialog secondary">Keep to-do</button><button id="todo-delete-confirm" class="danger">Delete to-do</button></dialog>
+  <dialog id="release-exception"><form id="release-exception-form"><div class="dialog-heading"><h2>Review event exception</h2><button class="close-dialog" type="button" aria-label="Close">×</button></div><p id="release-event-name"></p><p class="muted">Recurring local events use the same exception for the whole series. If the event or policy changes, release waits for review.</p><label for="release-event-mode">Release choice</label><select id="release-event-mode"><option value="inherit">Use source rule</option><option value="private">Keep private</option><option value="busy">Busy times only</option><option value="reviewed">Use my reviewed title</option></select><label for="release-event-title">Reviewed title</label><input id="release-event-title" maxlength="160" disabled><p id="release-exception-error" role="alert"></p><div class="dialog-actions"><button class="secondary close-dialog" type="button">Cancel</button><button class="primary">Save exception</button></div></form></dialog>
+<dialog id="contact-editor"><form id="contact-form"><div class="dialog-heading"><h2>Local contact</h2><button class="close-dialog" type="button" aria-label="Close">×</button></div><div id="contact-fields"></div><p id="contact-error" role="alert"></p><button class="primary">Save contact</button></form></dialog>
+<dialog id="interaction-editor"><form id="interaction-form"><div class="dialog-heading"><h2 id="interaction-heading">Log interaction</h2><button class="close-dialog" type="button" aria-label="Close">×</button></div><label for="interaction-type">Type</label><select id="interaction-type"><option>note</option><option>meeting</option><option>email</option><option>call</option><option>message</option></select><label for="interaction-time">When (this computer’s timezone)</label><input id="interaction-time" type="datetime-local" required><label for="interaction-summary">What happened?</label><textarea id="interaction-summary" maxlength="4000" rows="5" required></textarea><p id="interaction-error" role="alert"></p><button class="primary">Save interaction</button></form></dialog>
+<dialog id="source-detail"><div class="dialog-heading"><h2 id="source-title">Source</h2><button class="close-dialog" aria-label="Close">×</button></div><pre id="source-content"></pre></dialog>
+<dialog id="knowledge-delete"><h2 id="knowledge-delete-title">Remove from active records?</h2><p id="knowledge-delete-note"></p><button class="close-dialog secondary">Keep</button><button id="knowledge-delete-confirm" class="danger">Remove</button></dialog>
+  <dialog id="editor"><form id="memory-form"><div class="dialog-heading"><h2 id="editor-title">Add memory</h2><button type="button" class="close-dialog" aria-label="Close">×</button></div><label for="memory-title">Title</label><input id="memory-title" maxlength="240" required><label for="memory-content">What should Airlock remember?</label><textarea id="memory-content" rows="5" maxlength="4000" required></textarea><label for="memory-type">Type</label><select id="memory-type"><option value="fact">Fact</option><option value="preference">Preference</option><option value="decision">Decision</option><option value="standing_instruction">Standing instruction · requires approval</option></select><label class="checkbox"><input id="memory-review" type="checkbox"> Require my approval before this becomes active</label><div id="editor-error" role="alert"></div><div class="dialog-actions"><button type="button" class="secondary close-dialog">Cancel</button><button id="save-memory" type="submit" class="primary">Save memory</button></div></form></dialog>
+  <dialog id="event-editor"><form id="event-form"><div class="dialog-heading"><h2 id="event-editor-title">Add event</h2><button type="button" class="close-dialog" aria-label="Close">×</button></div><label for="event-title">Title</label><input id="event-title" maxlength="240" required><label class="checkbox"><input id="event-all-day" type="checkbox">All day</label><div class="form-pair"><div><label for="event-start">Start</label><input id="event-start" type="datetime-local" required></div><div><label for="event-end">End (exclusive for all-day)</label><input id="event-end" type="datetime-local" required></div></div><label for="event-zone">Timezone</label><input id="event-zone" required value="America/New_York"><label for="event-repeat">Repeat</label><select id="event-repeat"><option value="">Does not repeat</option><option value="FREQ=DAILY">Daily</option><option value="FREQ=WEEKLY">Weekly</option><option value="FREQ=MONTHLY">Monthly</option><option value="FREQ=YEARLY">Yearly</option><option value="custom">Keep existing recurrence</option></select><p id="event-series-note" class="muted" hidden>Changes and cancellation apply to the whole local series.</p><label class="checkbox"><input id="event-busy" type="checkbox" checked>Blocks time</label><label for="event-location">Location</label><input id="event-location" maxlength="320"><label for="event-summary">Details</label><textarea id="event-summary" rows="3" maxlength="4000"></textarea><div id="event-error" role="alert"></div><div class="dialog-actions"><button class="secondary close-dialog" type="button">Close</button><button id="save-event" class="primary">Save event</button></div></form></dialog>
+  <dialog id="event-detail"><div class="dialog-heading"><h2 id="event-detail-title"></h2><button class="close-dialog" aria-label="Close">×</button></div><div id="event-detail-body"></div><label for="event-note">Local note</label><textarea id="event-note" rows="3" maxlength="4000"></textarea><div id="event-detail-actions" class="dialog-actions"></div><div id="event-detail-error" role="alert"></div></dialog>
+  <dialog id="event-cancel"><h2>Cancel this local event?</h2><p>Recurring events are cancelled as a whole series. The change stays in the local history.</p><div class="dialog-actions"><button class="secondary close-dialog">Keep event</button><button id="confirm-event-cancel" class="danger">Cancel event</button></div></dialog>
+  <dialog id="schedule-editor"><form id="schedule-form"><div class="dialog-heading"><h2>Schedule local agent work</h2><button class="close-dialog" type="button" aria-label="Close">×</button></div><label for="schedule-name">Name</label><input id="schedule-name" maxlength="120" required><label for="schedule-interval">Run every (minutes, minimum 15)</label><input id="schedule-interval" type="number" min="15" max="10080" value="1440" required><p>Runs while Airlock is open. After sleep, one due run is queued; missed intervals are not replayed.</p><div id="schedule-error" role="alert"></div><div class="dialog-actions"><button class="secondary close-dialog" type="button">Close</button><button class="primary">Create schedule</button></div></form></dialog>
+  <dialog id="details"><div class="dialog-heading"><h2>Action details</h2><button class="close-dialog" aria-label="Close">×</button></div><pre id="detail-content"></pre><p class="muted">This report and its provenance are stored locally.</p></dialog>
+  <dialog id="forget-dialog"><div class="dialog-heading"><h2>Forget this memory?</h2><button class="close-dialog" aria-label="Close">×</button></div><p id="forget-title"></p><p class="muted">It will be removed from active memory and its embedding deleted. Historical chat is retained.</p><div class="dialog-actions"><button class="secondary close-dialog">Cancel</button><button id="confirm-forget" class="danger">Forget memory</button></div></dialog>
+</body>
+</html>

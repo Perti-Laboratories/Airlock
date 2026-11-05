@@ -1,0 +1,35 @@
+name: airlock-connector
+services:
+  connector:
+    build:
+      context: ../..
+      dockerfile: deploy/connector/Dockerfile
+    restart: unless-stopped
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    volumes: [connector-data:/data]
+    networks: [private]
+    tmpfs: [/tmp]
+  edge:
+    image: caddy:2@sha256:36c24ad91a7ff7bc4c87fe22bfa8df3c4b18da0773d73fc12ee2c52b98c0bb7e
+    restart: unless-stopped
+    ports: ["443:443", "80:80"]
+    environment:
+      AIRLOCK_CONNECTOR_HOST: ${AIRLOCK_CONNECTOR_HOST:?Set the connector DNS hostname}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    networks: [private, public]
+    cap_drop: [ALL]
+    cap_add: [NET_BIND_SERVICE]
+    security_opt: [no-new-privileges:true]
+networks:
+  private:
+    internal: true
+  public: {}
+volumes:
+  connector-data: {}
+  caddy-data: {}
+  caddy-config: {}

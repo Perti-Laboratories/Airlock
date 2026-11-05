@@ -1,0 +1,9 @@
+flowchart LR
+    Sources[Authorized local sources] --> Local[Airlock workspace]
+    Local --> DB[(Private local database)]
+    Local --> Model[Local Ollama]
+    Local --> Rules[Explicit release rules]
+    Rules -->|Approved fields over outbound HTTPS| Connector[Independent connector]
+    Connector --> Planner[Connected planning application]
+    Planner -->|Generic availability only| Connector
+    Local -->|Poll and verify signed availability| Connector

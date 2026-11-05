@@ -1,0 +1,7 @@
+flowchart LR
+    Local[Local workspace] --> Policy[Field and item approval]
+    Policy --> Outbox[Signed outbox]
+    Outbox -->|Outbound HTTPS| Connector[Connector]
+    Connector --> Recipient[Recipient workspace]
+    Recipient -->|Generic availability| Connector
+    Local -->|Authenticated poll| Connector
