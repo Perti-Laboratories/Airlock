@@ -4,12 +4,12 @@ const sharingState={connection:null,busy:false,connectionDirty:false};
 function renderSharingStatus(){
  const s=sharingState.connection;if(!s)return;
  const paused=s.release_paused;
- $('#sharing-status').textContent=!s.paired?'Not connected':!s.enabled?'Connection off':paused?'Outbound sharing paused':s.error?'Sharing needs attention':'Outbound sharing on';
- $('#sharing-hint').textContent=!s.paired?'Pair a connector below to get started.':!s.enabled?'Enable the connection to exchange approved information.':paused?(releaseState.dirty?'Save your rule changes, then resume sharing.':'Choose what can leave below, then resume sharing.'):(s.error||'Saved type levels also control incoming calendar events and to-dos.');
+ $('#sharing-status').textContent=!s.paired?'Not connected':!s.enabled?'Connection off':paused?'Sharing paused':s.error?'Sharing needs attention':'Sharing on';
+ $('#sharing-hint').textContent=!s.paired?'Pair a connector below to get started.':!s.enabled?'Enable the connection to exchange approved information.':paused?(releaseState.dirty?'Save your rule changes, then resume sharing.':'Choose the sharing levels below, then resume.'):(s.error||'Saved type levels also control incoming calendar events and to-dos.');
  $('#sharing-toggle').textContent=!s.enabled?'Enable connection':paused?'Resume sharing':'Pause sharing';
  $('#sharing-toggle').disabled=!s.paired||sharingState.busy||(s.enabled&&paused&&releaseState.dirty);
  $('#sharing-toggle').classList.toggle('secondary',s.enabled&&!paused);
- $('#exchange-banner').textContent=!s.enabled?'Connection off':paused?'Outbound sharing paused':'Approved sharing on';
+ $('#exchange-banner').textContent=!s.enabled?'Connection off':paused?'Sharing paused':'Approved sharing on';
 }
 async function refreshExchange(){
  const s=await api('/api/exchange');sharingState.connection=s;

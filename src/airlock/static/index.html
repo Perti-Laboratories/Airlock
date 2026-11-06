@@ -15,7 +15,7 @@
 </head>
 <body>
   <aside class="sidebar">
-    <a class="brand" href="/"><img src="/static/icon.svg" alt="" width="32" height="32">airlock<span>0.6.0</span></a>
+    <a class="brand" href="/"><img src="/static/icon.svg" alt="" width="32" height="32">airlock<span>0.7.0</span></a>
     <nav aria-label="Main navigation">
       <button class="nav active" data-view="chat"><span>◉</span> Chat</button>
       <button class="nav" data-view="calendar"><span>▦</span> Calendar</button>
@@ -63,20 +63,20 @@
       <h3>Memory suggestions</h3><p class="muted">Review the exact text and supporting evidence before sending it to the company.</p><div id="company-candidates"></div>
     </section>
     <section id="sharing-view" class="page-view" hidden>
-  <article class="sharing-summary" aria-label="Outbound sharing">
-    <div><span class="eyebrow">OUTBOUND SHARING</span><h2 id="sharing-status">Checking connection…</h2><p id="sharing-hint" role="status"></p><a id="exchange-harness-link" href="http://127.0.0.1:8743/" target="_blank" rel="noopener" hidden>Open reference harness ↗</a></div>
+  <article class="sharing-summary" aria-label="Sharing">
+    <div><span class="eyebrow">SHARING</span><h2 id="sharing-status">Checking connection…</h2><p id="sharing-hint" role="status"></p><a id="exchange-harness-link" href="http://127.0.0.1:8743/" target="_blank" rel="noopener" hidden>Open reference harness ↗</a></div>
     <button id="sharing-toggle" class="primary" disabled>Resume sharing</button>
   </article>
   <p id="sharing-result" role="status" hidden></p>
   <p id="exchange-records" class="muted" role="status"></p>
   <details id="exchange-pairing" class="control-card"><summary>Pair a connector</summary><p>Import the invitation supplied by your connector.</p><label for="exchange-invitation">Invitation file</label><input id="exchange-invitation" type="file" accept=".json,application/json"><button id="exchange-pair" class="secondary">Pair connector</button></details>
   <form id="release-policy-form" class="control-card">
-    <div class="panel-heading"><h3>What can leave</h3><button id="release-save" class="primary" disabled>Save rules</button></div>
+    <div class="panel-heading"><h3>Sharing levels</h3><button id="release-save" class="primary" disabled>Save rules</button></div>
     <input id="release-paused" type="checkbox" hidden checked>
     <div id="release-type-rules"></div>
     <details class="inline-help"><summary>Calendar sources &amp; limits</summary><p>A source must be allowed here to share its events. Event reviews may approve exceptions, within the Calendar level above.</p><div id="release-source-rules"></div></details>
     <label id="release-title-confirmation" class="checkbox" hidden><input id="release-title-ack" type="checkbox">Allow original meeting titles to leave.</label>
-    <p class="muted">Levels above limit every release, including reviewed exceptions. Calendar details, to-do notes, and attendees stay private. Each to-do still needs its own review.</p>
+    <p class="muted">These levels apply in both directions. Calendar details, to-do notes, and attendees stay private. Local to-dos need a release review before leaving; connected-domain items arrive automatically.</p>
     <button id="sharing-todos" type="button" class="text-button">Review to-do sharing ↗</button><p id="release-save-status" role="status"></p>
   </form>
   <details class="control-card" id="connection-options"><summary>Connection &amp; incoming availability</summary>
