@@ -18,8 +18,14 @@ and outbound-sharing permissions for the environment where it runs.
   monotonic revisions and leases guard the exchange. Signatures do not encrypt stored plaintext.
 - The laptop only makes outbound requests to its explicitly paired connector. No remote shell,
   arbitrary query interface or remote policy-editing endpoint is exposed.
-- The return channel accepts only typed generic availability. It cannot modify source calendars,
-  create canonical memory, run tools or return original event titles. Incoming tasks are not implemented.
+- The v2 record channel requires a fresh node-signed permission and strict calendar/to-do schemas.
+  Both the recipient adapter and connector enforce its type levels before delivery. Airlock checks
+  the signature, permission, replay cursor and lease, and reapplies current levels on every read.
+  Notes and details are excluded. Incoming mirrors cannot edit source calendars, become canonical
+  memory automatically, execute tools, or enter the local outbound source list. Edit at their source.
+  Connector-informed chat history is excluded from subsequent model history and automatic message
+  indexing; explicitly requested local writes still follow normal local permissions.
+- Legacy incoming availability remains a separate optional channel with generic titles only.
 - Optional company-memory contribution uses selected sources and reviewed candidates. Automatic
   company research sends bounded queries built from company topics rather than full private chat.
   Company-informed chat turns are read-only and excluded from normal reusable chat memory.

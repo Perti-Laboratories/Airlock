@@ -88,7 +88,8 @@ def status(db):
             'todo_count': sum(i.kind == 'todo' for i in doc.items),
             'sources_fresh': doc.sources_fresh, 'expires_at': doc.expires_at,
             'expired': doc.expires_at <= now()}
-    return {'paired':True,'endpoint':s.endpoint,'enabled':s.enabled,'allow_availability':s.allow_availability,
+    from .record_exchange import status as record_status
+    return {'records': record_status(db), 'paired':True,'endpoint':s.endpoint,'enabled':s.enabled,'allow_availability':s.allow_availability,
         'revision':s.revision,'acknowledged_revision':s.acknowledged_revision,'last_sent_at':s.last_sent_at,
         'error':s.error,'inbound_revision':s.inbound_revision,'inbound_expires_at':inbound_expiry,
         'queued':s.revision>s.acknowledged_revision, 'last_package':package}
@@ -181,6 +182,8 @@ def exchange_once(sessions, *, vault=None, transport=None, force=False):
                         db.info.pop("audit_attempts", None)
                     audited(db,'exchange.inbox.ack',{'revision':incoming.revision},
                         lambda:wire.request('POST','/v1/inbox/ack',{'revision':incoming.revision}))
+            from . import record_exchange
+            record_exchange.sync(db, s, credentials, wire)
             s.error=None;s.failures=0;s.next_attempt_at=now()+timedelta(seconds=30)
             db.commit()
         except Exception:

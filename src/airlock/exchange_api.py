@@ -2,7 +2,7 @@ import uuid
 from pydantic import Field
 from .schemas import StrictModel
 from .memory import DOMAIN, ActionError, audited
-from .models import ExchangeState, LocalState, now
+from .models import ExchangeState, RecordExchange, LocalState, now
 from .chat import report
 from . import exchange, todos
 from .calendar import Revision
@@ -46,6 +46,11 @@ def attach_exchange_routes(app,sessions,writer,settings,lock,release_writer=None
                 if not body.allow_availability or not body.enabled:
                     s.inbound=None
                     db.get(LocalState,1).context_reset_at=now()
+                if not body.enabled:
+                    records = db.get(RecordExchange, DOMAIN)
+                    if records:
+                        records.inbound = None
+                        records.policy_revision = -1
                 s.next_attempt_at=None
             audited(db,'exchange.options',body.model_dump(),apply)
             return recorded(db,'exchange_options',exchange.status(db))

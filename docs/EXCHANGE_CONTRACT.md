@@ -1,4 +1,4 @@
-# Airlock exchange contract — executable version 1
+# Airlock exchange contract — v1 releases and v2 return records
 
 Status: implemented prototype. The executable schemas live
 in `src/airlock_contracts`; the standalone receiver is `src/airlock_connector`. These packages do
@@ -28,7 +28,7 @@ and a random pairing code. The local owner imports it; Airlock creates an Ed2551
 Keychain. Claiming the invitation binds the instance to that public key. Retry with the same key is
 idempotent; a different key cannot replace it. The resulting device bearer stays in Keychain.
 
-The harness gets a distinct bearer credential with only projection reads and availability writes.
+The harness gets a distinct bearer credential with projection reads, availability writes, and permission-constrained v2 record writes.
 It never gets the device bearer, pairing invitation, or signing private keys. The connector admin's
 configuration belongs only on the connector host. Revocation is an admin CLI operation and disables
 both sides of that pairing. Replacing/rotating a pairing in place is not implemented: use a fresh
@@ -205,39 +205,84 @@ contains only generic availability, not commands. TLS protects transport confide
 does not encrypt approved plaintext stored by the connector or recipient.
 
 
-## Planned automatic domain synchronization (not implemented)
+## Automatic domain synchronization — connector 0.5.0
 
 Tracking: [automatic domain-scoped calendar and to-do synchronization](https://github.com/Perti-Laboratories/Airlock/issues/1).
-Protocol v1 still returns only generic availability. The following requires a versioned extension.
+The v1 endpoints remain compatible. The v2 channel returns typed calendar/to-do records without
+changing v1 availability. Upgrade the connector and recipient adapter before updating the node.
+Older connectors continue serving v1; the node shows an upgrade-required return status.
 
-Once a connection and an eligible record type are enabled, creating or updating a native record in
-its bound recipient domain automatically queues a permitted projection for Airlock. Domain assignment
-and the standing connection policy are the routing signal: no per-item "send to Airlock" action.
-Unrelated domains are excluded. Airlock remains useful without this connection.
+Once a connection is enabled and sharing is unpaused, eligible native records in the bound recipient
+domain automatically queue for Airlock under the saved type ceilings. No per-item send instruction.
+The initial snapshot includes existing eligible records in that domain; later changes reconcile it.
+Only calendar time blocks/title and to-do title/status/optional due date can cross. Other types,
+notes, descriptions, attendees, source credentials and raw source IDs are excluded.
 
-Both directions use the same per-type field ceilings. Each sender filters before transmission and
-each receiver independently validates; differing policies use their intersection, never their union.
-
-| Type | Allowed levels |
+| Local type level | Recipient-to-node projection |
 | --- | --- |
-| Calendar | Off; busy time blocks; title and times |
-| To-do | Off; title and status; title, status and due date |
-| Other types | Off until a separately reviewed versioned contract supports them |
+| Calendar private | No calendar records |
+| Calendar busy | Times and literal Busy |
+| Calendar original | Title (up to 160 characters) and times |
+| To-do private | No to-dos |
+| To-do title | Title (up to 160 characters) and open/done/archived status |
+| To-do title_due | The same plus due date |
 
-Descriptions, private notes, attendees, source credentials, source identifiers, documents and memory
-remain excluded. Existing local outbound source/item reviews still apply; receiving a record does
-not approve it for unrestricted onward sharing or change the local release policy.
+Local source/item reviews additionally constrain outbound release; an incoming item never grants
+broader export authority. Pause or disabling a type hides its mirrors immediately on local reads.
+Restoring permission requires a fresh snapshot rather than reviving withdrawn records.
 
-Use stable shared identities, origin and idempotent operation IDs to distinguish source records
-from mirrors. Do not echo an imported projection as a new native record. Synchronize permitted
-edits, completion and withdrawal with defined field ownership, expected revisions and explicit
-conflicts; never guess a merge with an LLM. Receipts must distinguish durable delivery from application.
+### Permission, delivery and application
 
-Permission tightening withdraws the affected mirror fields or records without deleting source
-records or private notes. Paused/offline connections expose stale/unknown state; reconnection must
-not resurrect tombstoned records. Rebinding a domain invalidates old-domain pending operations
-before reconciliation. These guarantees require automated retry, replay, conflict and isolation tests.
+- `POST /v2/record-policy` (device credential): node-signed `RecordPolicy`, schema 2, direction
+  `record_policy`, monotonic revision, message ID, pairing, issue/expiry and `rules`. No content.
+- `GET /v2/harness/records` (harness credential): connector-signed attestation of that policy,
+  current return revision and acknowledged revision. The adapter verifies its pinned key/audience.
+- `PUT /v2/harness/records` (harness credential): `expected_revision`, `policy_message_id`, and up to
+  2,000 strict calendar/to-do projections. The adapter filters before transport; the connector
+  rejects fields/records exceeding permission, expired grants, duplicate IDs and stale revisions.
+- `GET /v2/records` (device credential): connector-signed `RecordSnapshot` with direction `records`,
+  schema 2, monotonic revision, permission message ID and a lease no longer than the permission.
+- `POST /v2/records/ack` (device credential): acknowledges the durably applied revision. The connector
+  separately reports queued and node-acknowledged revisions; delivery is not mistaken for application.
 
-The node continues initiating HTTPS delivery and polling. Returned calendar items live inside
-Airlock and do not write to Google or other source calendars. A synchronized to-do is a record,
-not permission to run agents or tools. Remote execution remains a separately authorized feature.
+Every permission/record envelope has at most a 15-minute lease. New permissions invalidate queued
+packages; unchanged permission renewals may retain the already admitted local mirror until its
+original lease expires. A null inbox means awaiting a snapshot, not deletion; an explicit empty
+snapshot withdraws all mirrors. Old/conflicting revisions cannot restore withdrawn records.
+The node persists its cursor before acknowledgement and retries after lost receipts. Unchanged
+recipient snapshots renew roughly every two minutes; changed records are checked every 30 seconds.
+Two polling cycles is a typical convergence time, not an SLA. Offline/sleep means stale, never free.
+
+### Ownership and isolation
+
+Each record has one authoritative source. Updates, completion and deletion happen at that source;
+its mirror is read-only. A full snapshot atomically replaces only that connection's mirror set.
+Expected snapshot revisions reject concurrent writers; no LLM or last-write-wins merge is used.
+Recipient adapters derive opaque stable export IDs scoped to pairing, domain, type and source
+record; recurring occurrences have distinct identities. Imported node projections are excluded
+from return selection. Local return mirrors are stored separately from source/release tables and
+are available to the calendar, to-do list and chat without being eligible for re-export.
+
+Reassigning the recipient domain replaces the next snapshot with the new domain's eligible set.
+The adapter serializes source selection and transmission with route changes; old in-flight data
+may remain visible until reconciliation or lease expiry, but is never relabeled as new-domain data.
+Native records and private notes in either domain are preserved. The recipient must not retain an
+independent stale outbox after rebinding. Calendar coverage is the next 30 days, including bounded
+recurrence expansion; unsupported recurrence must fail explicitly rather than guess occurrences.
+
+Incoming calendar records exist only in Airlock. There are no Google writes, source-calendar edits,
+remote execution instructions or database tunnels. Automatic mirror editing is not supported.
+
+### End-to-end acceptance
+
+1. Bind an upgraded recipient adapter to a domain with only synthetic records for this test.
+2. Pair the node, enable the connection, choose Calendar time blocks and To-dos title/status, and
+   resume sharing. Create a recipient-domain event and task with a unique private phrase in notes.
+3. Within two polling cycles, Airlock shows Busy and the task title/status. No private phrase,
+   original meeting title or due date appears in the wire, mirror, calendar, to-do list or chat.
+4. Edit the source event time, complete the source task, then cancel/delete them. Verify stable
+   mirror identities followed by withdrawal. Native Airlock records remain unchanged.
+5. Switch levels, pause/resume, disconnect/reconnect and move the recipient binding to another
+   synthetic domain. Verify field minimization, stale state, fresh reconciliation and no duplicates.
+6. Review/release one native Airlock task and calendar item. Confirm the recipient receives them
+   and does not send them back as new records. Mirrors cannot be edited or approved for release.

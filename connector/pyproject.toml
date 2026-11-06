@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "airlock-connector"
-version = "0.4.0"
+version = "0.5.0"
 description = "Independent policy-bound exchange API for agent harnesses"
 requires-python = ">=3.11"
 dependencies = ["fastapi>=0.115,<1", "uvicorn>=0.32,<1", "pydantic>=2.10,<3", "cryptography>=48,<49", "httpx>=0.27,<1"]

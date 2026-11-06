@@ -39,5 +39,12 @@ class ConnectorClient:
         return self._request('PUT', '/v1/harness/availability',
                              json={'items': items, 'expected_revision': expected_revision})
 
+    def records_status(self):
+        return self._request('GET', '/v2/harness/records')
+
+    def replace_records(self, items, expected_revision, policy_message_id):
+        return self._request('PUT', '/v2/harness/records', json={'items': items,
+            'expected_revision': expected_revision, 'policy_message_id': str(policy_message_id)})
+
     def close(self):
         self.client.close()

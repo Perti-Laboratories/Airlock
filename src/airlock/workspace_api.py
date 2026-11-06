@@ -41,10 +41,12 @@ def attach_workspace_routes(app, sessions, writer, google, compute_lock, setting
     @app.get("/api/calendar")
     def calendar(start: datetime, end: datetime):
         from .exchange import availability_status
+        from .record_exchange import status as record_status
         with sessions() as db:
             return {
                 "events": list_events(db, start, end, include_overlays=True),
                 "incoming_availability": availability_status(db),
+                "incoming_records": record_status(db),
                 "sources": [
                     source_payload(s)
                     for s in db.scalars(

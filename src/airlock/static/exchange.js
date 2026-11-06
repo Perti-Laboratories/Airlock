@@ -5,7 +5,7 @@ function renderSharingStatus(){
  const s=sharingState.connection;if(!s)return;
  const paused=s.release_paused;
  $('#sharing-status').textContent=!s.paired?'Not connected':!s.enabled?'Connection off':paused?'Outbound sharing paused':s.error?'Sharing needs attention':'Outbound sharing on';
- $('#sharing-hint').textContent=!s.paired?'Pair a connector below to get started.':!s.enabled?'Enable the connection to exchange approved information.':paused?(releaseState.dirty?'Save your rule changes, then resume sharing.':'Choose what can leave below, then resume sharing.'):(s.error||'Only approved calendar events and to-dos can leave.');
+ $('#sharing-hint').textContent=!s.paired?'Pair a connector below to get started.':!s.enabled?'Enable the connection to exchange approved information.':paused?(releaseState.dirty?'Save your rule changes, then resume sharing.':'Choose what can leave below, then resume sharing.'):(s.error||'Saved type levels also control incoming calendar events and to-dos.');
  $('#sharing-toggle').textContent=!s.enabled?'Enable connection':paused?'Resume sharing':'Pause sharing';
  $('#sharing-toggle').disabled=!s.paired||sharingState.busy||(s.enabled&&paused&&releaseState.dirty);
  $('#sharing-toggle').classList.toggle('secondary',s.enabled&&!paused);
@@ -25,6 +25,8 @@ async function refreshExchange(){
   (p.expired?'Expired; the receiver cannot use it. ':!p.sources_fresh?'A calendar source is stale. Check Settings & Activity → Connections. ':'')+
   (!p.calendar_count&&!p.todo_count?'An empty package is valid: only approved upcoming events and reviewed to-dos appear. ':'')+
   (s.allow_availability?(s.inbound_expires_at&&new Date(s.inbound_expires_at)>new Date()?`Incoming availability is valid until ${new Date(s.inbound_expires_at).toLocaleTimeString()}.`:'Incoming availability is missing or expired; send a new test block from the harness.'):'Incoming availability is off.');
+ const r=s.records;
+ if(r)$('#exchange-records').textContent+=` Incoming records: ${r.calendar_count} calendar · ${r.todo_count} to-dos · ${!r.enabled?'off':r.stale?'waiting or expired':'current'}.${r.error?' '+r.error:''}`;
  $('#exchange-harness-link').hidden=s.endpoint!=='http://127.0.0.1:8742';
  renderSharingStatus();
 }
@@ -57,6 +59,7 @@ $('#sharing-toggle').onclick=async()=>{
 async function refreshTodos(){
  const todos=await api('/api/todos');const target=$('#todo-list');target.replaceChildren();
  for(const t of todos){const card=el('article','control-card');card.append(el('h3','',t.title),el('p','',t.description),el('p','muted',`${t.status.replaceAll('_',' ')} · ${t.priority}${t.due_at?' · due '+new Date(t.due_at).toLocaleString():''}`));
+ if(t.read_only){card.append(el('p','muted','From connected planner · edit at source'));target.append(card);continue;}
  const approved=t.release_title&&t.release_revision===t.revision;
  card.append(el('p','',approved?'Reviewed release: '+t.release_title+' · '+t.status+(t.release_due&&t.due_at?' · '+new Date(t.due_at).toLocaleString():''):t.release_title?'Changed since review · kept private':'Kept private'));
  card.append(button('Edit',()=>editTodo(t),'secondary'),button(t.status==='done'?'Reopen':'Complete',async()=>{await api('/api/todos/'+t.id,'PUT',{title:t.title,description:t.description,due_at:t.due_at,scheduled_start_at:t.scheduled_start_at,estimated_minutes:t.estimated_minutes,priority:t.priority,status:t.status==='done'?'open':'done',expected_revision:t.revision});await refreshTodos();},'secondary'));

@@ -50,7 +50,8 @@ def find(db, ident):
 
 
 def list_todos(db):
-    return [payload(t) for t in db.scalars(select(Todo).where(Todo.domain_id==DOMAIN,Todo.deleted.is_(False)).order_by(Todo.created_at))]
+    from .record_exchange import todo_overlays
+    return [payload(t) for t in db.scalars(select(Todo).where(Todo.domain_id==DOMAIN,Todo.deleted.is_(False)).order_by(Todo.created_at))] + todo_overlays(db)
 
 
 def save(db,body,ident=None,refs=None):
