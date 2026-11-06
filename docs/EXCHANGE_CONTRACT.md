@@ -203,3 +203,41 @@ IDs, and lease checks in their UI/API/model retrieval. Reconcile only connector-
 unrelated records in an existing domain. The optional return channel
 contains only generic availability, not commands. TLS protects transport confidentiality; signing
 does not encrypt approved plaintext stored by the connector or recipient.
+
+
+## Planned automatic domain synchronization (not implemented)
+
+Tracking: [automatic domain-scoped calendar and to-do synchronization](https://github.com/Perti-Laboratories/Airlock/issues/1).
+Protocol v1 still returns only generic availability. The following requires a versioned extension.
+
+Once a connection and an eligible record type are enabled, creating or updating a native record in
+its bound recipient domain automatically queues a permitted projection for Airlock. Domain assignment
+and the standing connection policy are the routing signal: no per-item "send to Airlock" action.
+Unrelated domains are excluded. Airlock remains useful without this connection.
+
+Both directions use the same per-type field ceilings. Each sender filters before transmission and
+each receiver independently validates; differing policies use their intersection, never their union.
+
+| Type | Allowed levels |
+| --- | --- |
+| Calendar | Off; busy time blocks; title and times |
+| To-do | Off; title and status; title, status and due date |
+| Other types | Off until a separately reviewed versioned contract supports them |
+
+Descriptions, private notes, attendees, source credentials, source identifiers, documents and memory
+remain excluded. Existing local outbound source/item reviews still apply; receiving a record does
+not approve it for unrestricted onward sharing or change the local release policy.
+
+Use stable shared identities, origin and idempotent operation IDs to distinguish source records
+from mirrors. Do not echo an imported projection as a new native record. Synchronize permitted
+edits, completion and withdrawal with defined field ownership, expected revisions and explicit
+conflicts; never guess a merge with an LLM. Receipts must distinguish durable delivery from application.
+
+Permission tightening withdraws the affected mirror fields or records without deleting source
+records or private notes. Paused/offline connections expose stale/unknown state; reconnection must
+not resurrect tombstoned records. Rebinding a domain invalidates old-domain pending operations
+before reconciliation. These guarantees require automated retry, replay, conflict and isolation tests.
+
+The node continues initiating HTTPS delivery and polling. Returned calendar items live inside
+Airlock and do not write to Google or other source calendars. A synchronized to-do is a record,
+not permission to run agents or tools. Remote execution remains a separately authorized feature.
