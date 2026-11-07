@@ -56,23 +56,55 @@ $('#sharing-toggle').onclick=async()=>{
  }catch(e){$('#sharing-result').textContent=e.message;}
  finally{sharingState.busy=false;$('#sharing-result').hidden=false;renderSharingStatus();}
 };
-async function refreshTodos(){
- const todos=await api('/api/todos');const target=$('#todo-list');target.replaceChildren();
- for(const t of todos){const card=el('article','control-card');card.append(el('h3','',t.title),el('p','',t.description),el('p','muted',`${t.status.replaceAll('_',' ')} · ${t.priority}${t.due_at?' · due '+new Date(t.due_at).toLocaleString():''}`));
- if(t.read_only){card.append(el('p','muted','From connected planner · edit at source'));target.append(card);continue;}
- const approved=t.release_title&&t.release_revision===t.revision;
- card.append(el('p','',approved?'Reviewed release: '+t.release_title+' · '+t.status+(t.release_due&&t.due_at?' · '+new Date(t.due_at).toLocaleString():''):t.release_title?'Changed since review · kept private':'Kept private'));
- card.append(button('Edit',()=>editTodo(t),'secondary'),button(t.status==='done'?'Reopen':'Complete',async()=>{await api('/api/todos/'+t.id,'PUT',{title:t.title,description:t.description,due_at:t.due_at,scheduled_start_at:t.scheduled_start_at,estimated_minutes:t.estimated_minutes,priority:t.priority,status:t.status==='done'?'open':'done',expected_revision:t.revision});await refreshTodos();},'secondary'));
- card.append(button('Review release',()=>{todoEditing=t;$('#todo-release-title').value=t.release_title||'';$('#todo-release-due').checked=t.release_due;$('#todo-release-name').textContent=t.title+' · '+t.status;$('#todo-release-dialog').showModal();},'secondary'));
- card.append(button('Delete',()=>{todoEditing=t;$('#todo-delete-name').textContent=t.title;$('#todo-delete-dialog').showModal();},'text-button'));
- target.append(card);
- }
- if(!todos.length)target.append(el('div','empty-card','Add a local to-do. It stays private until you review a release.'));
+const todoColumns=[['backlog','Backlog'],['working','Working'],['agent_action','Agent Action'],['in_review','In Review'],['done','Done'],['archive','Archive']];
+let todoMoving=false,todoDragging=null;
+function todoColumn(t){return t.board_column||({done:'done',archived:'archive'}[t.status]||'backlog');}
+async function moveTodo(t,column){
+ if(todoMoving||column===todoColumn(t))return;
+ todoMoving=true;
+ try{await api('/api/todos/'+t.id+'/board','POST',{column,expected_column:todoColumn(t),expected_revision:t.revision,expected_version:t.board_version||null});await refreshTodos();}
+ catch(e){banner(e.message);await refreshTodos();}
+ finally{todoMoving=false;}
 }
-function editTodo(t=null){todoEditing=t;$('#todo-title').value=t?.title||'';$('#todo-description').value=t?.description||'';$('#todo-due').value=t?.due_at?new Date(new Date(t.due_at).getTime()-new Date(t.due_at).getTimezoneOffset()*60000).toISOString().slice(0,16):'';$('#todo-priority').value=t?.priority||'normal';$('#todo-status').value=t?.status||'open';$('#todo-error').textContent='';$('#todo-editor').showModal();}
+async function refreshTodos(){
+ const todos=await api('/api/todos');const target=$('#todo-list');target.replaceChildren();target.className='todo-board';
+ for(const [key,title] of todoColumns){
+  const column=el('section','todo-column');column.setAttribute('aria-label',title);
+  const cards=todos.filter(t=>todoColumn(t)===key);const heading=el('header','');heading.append(el('h3','',title),el('span','muted',String(cards.length)));column.append(heading);
+  column.addEventListener('dragover',e=>{if(todoDragging&&!todoMoving){e.preventDefault();column.classList.add('drop-target');}});
+  column.addEventListener('dragleave',()=>column.classList.remove('drop-target'));
+  column.addEventListener('drop',e=>{e.preventDefault();column.classList.remove('drop-target');const t=todoDragging;todoDragging=null;if(t)void moveTodo(t,key);});
+  for(const t of cards){
+   const card=el('article','todo-card');const pending=t.board_move_status==='pending';const movable=(!t.read_only||t.board_editable)&&!pending;
+   card.draggable=movable;card.addEventListener('dragstart',e=>{if(!movable){e.preventDefault();return;}todoDragging=t;e.dataTransfer.setData('text/plain',t.id);e.dataTransfer.effectAllowed='move';});
+   card.addEventListener('dragend',()=>{todoDragging=null;document.querySelectorAll('.drop-target').forEach(x=>x.classList.remove('drop-target'));});
+   card.append(el('strong','todo-card-title',t.title));
+   if(t.due_at)card.append(el('small','muted','Due '+new Date(t.due_at).toLocaleDateString()));
+   if(['high','urgent'].includes(t.priority))card.append(el('small','',t.priority==='urgent'?'Urgent':'High priority'));
+   if(t.read_only){
+    card.append(el('small','muted','Connected task'));
+    if(t.board_move_status)card.append(el('small','',({pending:'Move pending',applied:'Move synced',conflict:'Changed elsewhere — try again',rejected:'Move not permitted — sync and retry',expired:'Move expired — try again'}[t.board_move_status])));
+   }else{
+    const approved=t.release_title&&t.release_revision===t.revision;
+    card.append(el('small','muted',approved?'Sharing reviewed title':t.release_title?'Review needed':'Private'));
+    card.append(button('Details',()=>editTodo(t),'text-button'));
+    const actions=el('details','todo-card-actions');actions.append(el('summary','','Sharing & actions'));
+    actions.append(button('Review release',()=>{todoEditing=t;$('#todo-release-title').value=t.release_title||'';$('#todo-release-due').checked=t.release_due;$('#todo-release-name').textContent=t.title;$('#todo-release-dialog').showModal();},'text-button'));
+    actions.append(button('Delete',()=>{todoEditing=t;$('#todo-delete-name').textContent=t.title;$('#todo-delete-dialog').showModal();},'text-button'));card.append(actions);
+   }
+   if(movable||pending){const label=el('label','todo-move-label','Move to');const select=el('select','');select.setAttribute('aria-label','Move '+t.title+' to');for(const [value,text]of todoColumns){const o=el('option','',text);o.value=value;select.append(o);}select.value=todoColumn(t);select.disabled=pending;select.addEventListener('change',()=>void moveTodo(t,select.value));label.append(select);card.append(label);}
+   else if(t.read_only)card.append(el('small','muted','Sync both sides to enable moves'));
+   if(key==='agent_action')card.append(el('small','muted','Category only · no agent starts automatically'));
+   column.append(card);
+  }
+  if(!cards.length)column.append(el('p','todo-column-empty','No tasks'));
+  target.append(column);
+ }
+}
+function editTodo(t=null){todoEditing=t;$('#todo-title').value=t?.title||'';$('#todo-description').value=t?.description||'';$('#todo-due').value=t?.due_at?new Date(new Date(t.due_at).getTime()-new Date(t.due_at).getTimezoneOffset()*60000).toISOString().slice(0,16):'';$('#todo-priority').value=t?.priority||'normal';$('#todo-status').value=t?todoColumn(t):'backlog';$('#todo-error').textContent='';$('#todo-editor').showModal();}
 $('#add-todo').addEventListener('click',()=>editTodo());
 $('#refresh-todos').addEventListener('click',()=>refreshTodos().catch(e=>banner(e.message)));
-$('#todo-form').addEventListener('submit',async e=>{e.preventDefault();try{const t=todoEditing;await api(t?'/api/todos/'+t.id:'/api/todos',t?'PUT':'POST',{title:$('#todo-title').value,description:$('#todo-description').value,due_at:$('#todo-due').value?new Date($('#todo-due').value).toISOString():null,priority:$('#todo-priority').value,status:$('#todo-status').value,scheduled_start_at:t?.scheduled_start_at||null,estimated_minutes:t?.estimated_minutes||null,expected_revision:t?.revision||null});$('#todo-editor').close();await refreshTodos();}catch(e){$('#todo-error').textContent=e.message;}});
+$('#todo-form').addEventListener('submit',async e=>{e.preventDefault();try{const t=todoEditing;await api(t?'/api/todos/'+t.id:'/api/todos',t?'PUT':'POST',{title:$('#todo-title').value,description:$('#todo-description').value,due_at:$('#todo-due').value?new Date($('#todo-due').value).toISOString():null,priority:$('#todo-priority').value,board_column:$('#todo-status').value,scheduled_start_at:t?.scheduled_start_at||null,estimated_minutes:t?.estimated_minutes||null,expected_revision:t?.revision||null});$('#todo-editor').close();await refreshTodos();}catch(e){$('#todo-error').textContent=e.message;}});
 $('#todo-release-form').addEventListener('submit',async e=>{e.preventDefault();try{await api('/api/todos/'+todoEditing.id+'/release','PUT',{expected_revision:todoEditing.revision,title:$('#todo-release-title').value.trim()||null,include_due:$('#todo-release-due').checked});$('#todo-release-dialog').close();await refreshTodos();}catch(e){$('#todo-release-error').textContent=e.message;}});
 $('#todo-delete-confirm').addEventListener('click',async()=>{await api('/api/todos/'+todoEditing.id+'/delete','POST',{expected_revision:todoEditing.revision});$('#todo-delete-dialog').close();await refreshTodos();});
 // Keep read views current without replacing an in-progress editor or unsaved release controls.

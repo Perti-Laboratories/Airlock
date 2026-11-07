@@ -21,7 +21,7 @@ full workspace.
 | To-dos | Off by default; individually reviewed titles/status, optionally approved due dates |
 | Notes, documents, chat, saved memory, contacts and company knowledge | No external connector export |
 | Incoming availability | Optional generic time blocks; no original titles or details |
-| Incoming calendar events and to-dos | Automatic domain-scoped mirrors under the saved type levels; edit at source |
+| Incoming calendar events and to-dos | Automatic domain-scoped mirrors under the saved type levels; task columns can move from either side |
 | Remote agent instructions | Not implemented; no remote execution API |
 
 Local type levels constrain both directions. Source/item reviews additionally constrain local outbound release. Notes stay on their source side, and mirrors cannot be re-exported as new records.
@@ -44,8 +44,9 @@ Return: permitted domain records / optional availability → connector → Airlo
 The laptop initiates the connection: no public laptop port, inbound webhook, tunnel or remote shell.
 Live transport uses HTTPS with certificate verification. Separate device and recipient credentials,
 signed snapshots, revision checks and expiring records constrain the exchange. Source credentials
-remain on the local machine. With connector 0.5.0, an enabled, unpaused connection automatically
+remain on the local machine. With connector 0.6.0, an enabled, unpaused connection automatically
 exchanges permitted domain records; no per-item send action is needed on the recipient side.
+The task board has Backlog, Working, Agent Action, In Review, Done and Archive. Moving a connected task queues a source-confirmed update; details remain editable only at source. Agent Action is categorization only across the connection and never starts remote work.
 Updates normally converge within two polling cycles while both sides are awake and online. Local model inference and embeddings use Ollama, with no hosted-model
 fallback. See [the exchange contract](docs/EXCHANGE_CONTRACT.md) and [security model](SECURITY.md).
 

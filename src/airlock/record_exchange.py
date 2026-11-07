@@ -138,8 +138,9 @@ def calendar_overlays(db, start, end):
 def todo_overlays(db):
     items, snapshot = visible(db)
     state = db.get(ExchangeState, DOMAIN)
-    return [dict(id=mirror_id(state, item), title=item.title, description='',
+    from .task_board import decorate
+    return decorate(db, [dict(id=mirror_id(state, item), _export_id=str(item.export_id), title=item.title, description='',
         due_at=item.due_at.isoformat() if item.due_at else None, scheduled_start_at=None,
         estimated_minutes=None, priority='normal', status=item.status, revision=snapshot.revision,
         source_refs=[], release_title=None, release_due=False, release_revision=None,
-        read_only=True, origin='recipient') for item in items if item.kind == 'todo']
+        read_only=True, origin='recipient') for item in items if item.kind == 'todo'])

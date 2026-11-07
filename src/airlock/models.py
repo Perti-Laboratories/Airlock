@@ -427,3 +427,4 @@ class RecordExchange(Base):
     inbound_hash: Mapped[str | None] = mapped_column(String(64))
     inbound: Mapped[dict | None] = mapped_column(JSON)
     error: Mapped[str | None] = mapped_column(String(240))
+    board_state: Mapped[dict] = mapped_column(JSON, default=dict, server_default='{}')

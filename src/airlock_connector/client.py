@@ -46,5 +46,8 @@ class ConnectorClient:
         return self._request('PUT', '/v2/harness/records', json={'items': items,
             'expected_revision': expected_revision, 'policy_message_id': str(policy_message_id)})
 
+    def board_request(self, method, path, body=None):
+        return self._request(method, path, **({'json': body} if body is not None else {}))
+
     def close(self):
         self.client.close()

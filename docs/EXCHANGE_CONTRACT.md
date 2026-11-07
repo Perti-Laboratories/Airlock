@@ -256,7 +256,7 @@ Two polling cycles is a typical convergence time, not an SLA. Offline/sleep mean
 ### Ownership and isolation
 
 Each record has one authoritative source. Updates, completion and deletion happen at that source;
-its mirror is read-only. A full snapshot atomically replaces only that connection's mirror set.
+titles and details on its mirror are read-only. Optional v3 board moves request a source-owned category change. A full snapshot atomically replaces only that connection's mirror set.
 Expected snapshot revisions reject concurrent writers; no LLM or last-write-wins merge is used.
 Recipient adapters derive opaque stable export IDs scoped to pairing, domain, type and source
 record; recurring occurrences have distinct identities. Imported node projections are excluded
@@ -271,7 +271,7 @@ independent stale outbox after rebinding. Calendar coverage is the next 30 days,
 recurrence expansion; unsupported recurrence must fail explicitly rather than guess occurrences.
 
 Incoming calendar records exist only in Airlock. There are no Google writes, source-calendar edits,
-remote execution instructions or database tunnels. Automatic mirror editing is not supported.
+remote execution instructions or database tunnels. Only the optional v3 task-column operation can change a mirror’s source; arbitrary mirror editing is unsupported.
 
 ### End-to-end acceptance
 
@@ -285,4 +285,46 @@ remote execution instructions or database tunnels. Automatic mirror editing is n
 5. Switch levels, pause/resume, disconnect/reconnect and move the recipient binding to another
    synthetic domain. Verify field minimization, stale state, fresh reconciliation and no duplicates.
 6. Review/release one native Airlock task and calendar item. Confirm the recipient receives them
-   and does not send them back as new records. Mirrors cannot be edited or approved for release.
+   and does not send them back as new records. Mirror titles/details cannot be edited or approved for release.
+
+## Optional task board protocol — connector 0.6.0 / local 0.8.0
+
+The v1/v2 wire documents remain unchanged. `/v3/{role}/board` (GET/POST),
+`/v3/{role}/moves` (POST) and `/v3/{role}/receipts` (POST) form a separate sidecar;
+role is `device` or `harness`, authenticated with that role’s existing bearer.
+Device board publications and move requests use signed envelopes. Harness writes use its
+backend credential; the connector signs all inbox responses for the receiving peer.
+
+A board snapshot contains only already permitted task export IDs, a neutral column and a
+64-character opaque version token. `basis_revision` ties it to the current v1 release or v2
+return snapshot. It has its own monotonically increasing revision and at most a 15-minute
+lease. Unknown fields, unshared IDs, wrong roles, duplicate IDs, stale revisions and conflicting
+same-revision bodies are rejected. Columns are `backlog`, `working`, `agent_action`,
+`in_review`, `done`, `archive`. Legacy coarse statuses still travel in v1/v2 for old clients.
+
+A move contains an operation UUID, export ID, destination column, expected source token,
+current permission revision and expiry. At most 100 uncompleted live requests are accepted.
+The receiver validates its current source and permission, commits the task change with a
+local deduplication receipt atomically, then acknowledges `applied`, `conflict`, `rejected`
+or `expired`. A lost acknowledgement retries the receipt without repeating the source edit.
+The mirror stays in its confirmed column while pending. Subsequent snapshots provide the
+confirmed new column. There is no last-write-wins merge and no echo as a new task.
+
+The connector keeps operation receipts for a bounded one-day retry window (pruned on new
+moves) and returns at most 200 recent receipts. Peers retain processed operation receipts for
+one day beyond the original request lease. A replay after pruning fails its expired envelope.
+Permission changes or renewals can invalidate a queued request; refresh and retry deliberately.
+Pause/type-off/disconnect immediately disable local mirror actions and cancel unsent intents.
+A disconnected recipient cannot instantly learn a policy change; the node rechecks current
+permission before applying, and every permission expires. Moves already applied cannot be recalled.
+
+Agent Action is a board category across the boundary, never a workflow dispatch. A recipient
+must not interpret the column or a released title as permission to execute. Source-specific
+active workflow protections still apply. No task notes, descriptions, source IDs, credentials,
+contacts or memory enter this channel.
+
+Acceptance: create and review a synthetic local task with private notes; verify each column
+arrives at the recipient. Move its mirror back through Working, Review, Done and Archive,
+verify source confirmation and preserved notes. Repeat with a recipient-created task. Interrupt
+receipt delivery, make a concurrent source edit, withdraw a task and pause sharing. Confirm
+exactly one application, explicit conflicts/rejections, no duplicates and no private notes on wire.

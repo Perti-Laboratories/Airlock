@@ -50,6 +50,8 @@ def attach_exchange_routes(app,sessions,writer,settings,lock,release_writer=None
                     records = db.get(RecordExchange, DOMAIN)
                     if records:
                         records.inbound = None
+                        from airlock_connector.board_peer import cancel
+                        records.board_state = cancel(records.board_state)
                         records.policy_revision = -1
                 s.next_attempt_at=None
             audited(db,'exchange.options',body.model_dump(),apply)
@@ -85,6 +87,11 @@ def attach_exchange_routes(app,sessions,writer,settings,lock,release_writer=None
     def delete(ident: uuid.UUID,body: Revision):
         with writer() as db:
             return recorded(db,'todo_delete',todos.remove(db,ident,body.expected_revision))
+
+    @app.post('/api/todos/{ident}/board')
+    def move(ident: uuid.UUID, body: todos.MoveBody):
+        with release_writer() as db:
+            return recorded(db, 'todo_board', todos.move(db, ident, body))
 
     @app.put('/api/todos/{ident}/release')
     def review(ident: uuid.UUID,body: todos.TodoRelease):

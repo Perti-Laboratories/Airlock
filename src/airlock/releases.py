@@ -101,6 +101,8 @@ def save_policy(db, body):
         incoming = db.get(RecordExchange, DOMAIN)
         if incoming:
             incoming.inbound = None
+            from airlock_connector.board_peer import cancel
+            incoming.board_state = cancel(incoming.board_state)
             db.get(LocalState, 1).context_reset_at = now()
         # Overrides bind to the policy revision and are re-reviewed if rules change.
         db.flush()

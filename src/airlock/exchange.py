@@ -116,7 +116,7 @@ def content(db):
         for t in db.scalars(select(Todo).where(Todo.domain_id==DOMAIN,Todo.deleted.is_(False))):
             if t.release_title and t.release_revision==t.revision:
                 items.append(TodoProjection(export_id=export_id(db,'todo:'+str(t.id)),title=t.release_title,
-                    status=t.status,due_at=t.due_at if t.release_due and todo_level == 'title_due' else None))
+                    status=t.status if t.status in ('done','archived') else 'open',due_at=t.due_at if t.release_due and todo_level == 'title_due' else None))
     selected=[s for s in policy['sources'] if policy['type_rules']['calendar'] != 'private'
         and policy['rules'].get(s['id'],'private')!='private']
     observations=[s.last_synced_at for s in db.scalars(select(CalendarSource).where(CalendarSource.domain_id==DOMAIN))
@@ -184,6 +184,8 @@ def exchange_once(sessions, *, vault=None, transport=None, force=False):
                         lambda:wire.request('POST','/v1/inbox/ack',{'revision':incoming.revision}))
             from . import record_exchange
             record_exchange.sync(db, s, credentials, wire)
+            from . import task_board
+            task_board.sync(db, s, credentials, wire)
             s.error=None;s.failures=0;s.next_attempt_at=now()+timedelta(seconds=30)
             db.commit()
         except Exception:
