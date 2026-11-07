@@ -126,7 +126,7 @@ async function refreshReleases({preserveDraft=false}={}) {
 $('#refresh-releases').addEventListener('click', () => refreshSharing().catch(e => banner(e.message)));
 const releaseTypes = [
  ['calendar','Calendar',[['busy','Time blocks only'],['original','Titles + time blocks']]],
- ['todo','To-dos',[['title','Reviewed titles + status'],['title_due','Reviewed titles + status + due dates']]],
+ ['todo','To-dos',[['title','Titles + status'],['title_due','Titles + status + due dates']]],
  ['contacts','Contacts',[]],
 ];
 function renderTypeRules(values){

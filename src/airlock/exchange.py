@@ -88,7 +88,8 @@ def status(db):
             'todo_count': sum(i.kind == 'todo' for i in doc.items),
             'sources_fresh': doc.sources_fresh, 'expires_at': doc.expires_at,
             'expired': doc.expires_at <= now()}
-    return {'paired':True,'endpoint':s.endpoint,'enabled':s.enabled,'allow_availability':s.allow_availability,
+    from .record_exchange import status as record_status
+    return {'records': record_status(db), 'paired':True,'endpoint':s.endpoint,'enabled':s.enabled,'allow_availability':s.allow_availability,
         'revision':s.revision,'acknowledged_revision':s.acknowledged_revision,'last_sent_at':s.last_sent_at,
         'error':s.error,'inbound_revision':s.inbound_revision,'inbound_expires_at':inbound_expiry,
         'queued':s.revision>s.acknowledged_revision, 'last_package':package}
@@ -115,7 +116,7 @@ def content(db):
         for t in db.scalars(select(Todo).where(Todo.domain_id==DOMAIN,Todo.deleted.is_(False))):
             if t.release_title and t.release_revision==t.revision:
                 items.append(TodoProjection(export_id=export_id(db,'todo:'+str(t.id)),title=t.release_title,
-                    status=t.status,due_at=t.due_at if t.release_due and todo_level == 'title_due' else None))
+                    status=t.status if t.status in ('done','archived') else 'open',due_at=t.due_at if t.release_due and todo_level == 'title_due' else None))
     selected=[s for s in policy['sources'] if policy['type_rules']['calendar'] != 'private'
         and policy['rules'].get(s['id'],'private')!='private']
     observations=[s.last_synced_at for s in db.scalars(select(CalendarSource).where(CalendarSource.domain_id==DOMAIN))
@@ -181,6 +182,10 @@ def exchange_once(sessions, *, vault=None, transport=None, force=False):
                         db.info.pop("audit_attempts", None)
                     audited(db,'exchange.inbox.ack',{'revision':incoming.revision},
                         lambda:wire.request('POST','/v1/inbox/ack',{'revision':incoming.revision}))
+            from . import record_exchange
+            record_exchange.sync(db, s, credentials, wire)
+            from . import task_board
+            task_board.sync(db, s, credentials, wire)
             s.error=None;s.failures=0;s.next_attempt_at=now()+timedelta(seconds=30)
             db.commit()
         except Exception:

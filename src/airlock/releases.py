@@ -6,7 +6,7 @@ from pydantic import Field, model_validator
 from sqlalchemy import select
 from .schemas import StrictModel
 from .memory import DOMAIN, ActionError, audited
-from .models import ReleasePolicy, ReleaseOverride, CalendarSource, now
+from .models import ReleasePolicy, ReleaseOverride, CalendarSource, RecordExchange, LocalState, now
 from .calendar import list_events, find_event
 from .calendar_sync import source_payload
 
@@ -98,6 +98,12 @@ def save_policy(db, body):
         row.revision += 1
         row.paused, row.rules = body.paused, body.rules
         row.type_rules = type_rules
+        incoming = db.get(RecordExchange, DOMAIN)
+        if incoming:
+            incoming.inbound = None
+            from airlock_connector.board_peer import cancel
+            incoming.board_state = cancel(incoming.board_state)
+            db.get(LocalState, 1).context_reset_at = now()
         # Overrides bind to the policy revision and are re-reviewed if rules change.
         db.flush()
         return {"policy_revision": row.revision, "paused": row.paused}

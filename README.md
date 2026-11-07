@@ -9,7 +9,8 @@ across otherwise separate domains. Each side keeps its own database, credentials
 
 For example, a work calendar can release **busy times without meeting details**, and a selected task
 can release a **reviewed title and completion status without its notes**. The receiving planner can
-return generic **Unavailable** blocks. Connecting the two does not grant access to either side's
+automatically return eligible **calendar events and to-dos from its connected domain**, using the
+same saved type levels. Generic **Unavailable** blocks from separately selected calendars remain optional. Connecting the two does not grant access to either side's
 full workspace.
 
 ## What can cross the boundary?
@@ -20,8 +21,10 @@ full workspace.
 | To-dos | Off by default; individually reviewed titles/status, optionally approved due dates |
 | Notes, documents, chat, saved memory, contacts and company knowledge | No external connector export |
 | Incoming availability | Optional generic time blocks; no original titles or details |
-| Incoming tasks or remote agent instructions | Not implemented; no remote execution API |
+| Incoming calendar events and to-dos | Automatic domain-scoped mirrors under the saved type levels; task columns can move from either side |
+| Remote agent instructions | Not implemented; no remote execution API |
 
+Local type levels constrain both directions. Source/item reviews additionally constrain local outbound release. Notes stay on their source side, and mirrors cannot be re-exported as new records.
 Local rules determine what leaves. Pairing does not enable sharing. Pause withdraws the active
 projection on the next successful exchange; leases limit how long disconnected recipients should
 use it. These controls cannot recall information a recipient has already copied.
@@ -35,13 +38,16 @@ Local sources → Airlock's private workspace → explicit release rules
                                                 ↕
                                       Your planning application
 
-Optional return: generic availability → connector → Airlock polls and verifies
+Return: permitted domain records / optional availability → connector → Airlock polls and verifies
 ```
 
 The laptop initiates the connection: no public laptop port, inbound webhook, tunnel or remote shell.
 Live transport uses HTTPS with certificate verification. Separate device and recipient credentials,
 signed snapshots, revision checks and expiring records constrain the exchange. Source credentials
-remain on the local machine. Local model inference and embeddings use Ollama, with no hosted-model
+remain on the local machine. With connector 0.6.0, an enabled, unpaused connection automatically
+exchanges permitted domain records; no per-item send action is needed on the recipient side.
+The task board has Backlog, Working, Agent Action, In Review, Done and Archive. Moving a connected task queues a source-confirmed update; details remain editable only at source. Agent Action is categorization only across the connection and never starts remote work.
+Updates normally converge within two polling cycles while both sides are awake and online. Local model inference and embeddings use Ollama, with no hosted-model
 fallback. See [the exchange contract](docs/EXCHANGE_CONTRACT.md) and [security model](SECURITY.md).
 
 **This is an early prototype, not a security certification or a data-loss-prevention guarantee.**

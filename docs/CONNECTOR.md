@@ -160,3 +160,20 @@ or real company connection was performed.
 
 Regression verification: 88 backend checks and 10 UI checks passed. Company knowledge is only a
 proposed separate connection in [COMPANY_MEMORY.md](COMPANY_MEMORY.md), not part of this protocol.
+
+
+## Automatic return records (0.5.0)
+
+The v2 record channel is separate from optional generic availability. A recipient adapter automatically
+selects eligible native records from its bound domain and applies the node's current signed type
+levels before sending. No per-item send instruction is required. Use `records_status()` to verify
+permission, then `replace_records(items, expected_revision, policy_message_id)`; pin the connector
+key and validate the signed policy before using it. See [the executable contract](EXCHANGE_CONTRACT.md#automatic-domain-synchronization--connector-050).
+
+Airlock 0.8.0 shows returned records in Calendar, To-dos and chat. Titles/details are read-only mirrors;
+create/edit/complete them at their source. Private notes stay on each side. The reference harness's
+existing availability fixture still tests only v1 availability; use a v2-capable recipient adapter
+or the automated record-exchange tests for the new path.
+
+Connector 0.6.0 adds the optional v3 task board channel. Upgrade both peers for source-confirmed
+column moves. See [the board protocol](EXCHANGE_CONTRACT.md#optional-task-board-protocol--connector-060--local-080).
