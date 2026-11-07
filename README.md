@@ -46,7 +46,7 @@ Live transport uses HTTPS with certificate verification. Separate device and rec
 signed snapshots, revision checks and expiring records constrain the exchange. Source credentials
 remain on the local machine. With connector 0.6.0, an enabled, unpaused connection automatically
 exchanges permitted domain records; no per-item send action is needed on the recipient side.
-The task board has Backlog, Working, Agent Action, In Review, Done and Archive. Moving a connected task queues a source-confirmed update; details remain editable only at source. Agent Action is categorization only across the connection and never starts remote work.
+The task board has Backlog, Working, Agent Action and In Review, with Done and Archive available under Show finished. Moving a connected task queues a source-confirmed update; details remain editable only at source. Agent Action is categorization only across the connection and never starts remote work.
 Updates normally converge within two polling cycles while both sides are awake and online. Local model inference and embeddings use Ollama, with no hosted-model
 fallback. See [the exchange contract](docs/EXCHANGE_CONTRACT.md) and [security model](SECURITY.md).
 

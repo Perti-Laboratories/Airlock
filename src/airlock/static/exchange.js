@@ -68,7 +68,9 @@ async function moveTodo(t,column){
 }
 async function refreshTodos(){
  const todos=await api('/api/todos');const target=$('#todo-list');target.replaceChildren();target.className='todo-board';
- for(const [key,title] of todoColumns){
+ const visibleColumns=todoColumns.filter(([key])=>$('#todo-show-finished').checked||!['done','archive'].includes(key));
+ target.style.gridTemplateColumns='repeat('+visibleColumns.length+',minmax(220px,1fr))';
+ for(const [key,title] of visibleColumns){
   const column=el('section','todo-column');column.setAttribute('aria-label',title);
   const cards=todos.filter(t=>todoColumn(t)===key);const heading=el('header','');heading.append(el('h3','',title),el('span','muted',String(cards.length)));column.append(heading);
   column.addEventListener('dragover',e=>{if(todoDragging&&!todoMoving){e.preventDefault();column.classList.add('drop-target');}});
@@ -102,6 +104,7 @@ async function refreshTodos(){
  }
 }
 function editTodo(t=null){todoEditing=t;$('#todo-title').value=t?.title||'';$('#todo-description').value=t?.description||'';$('#todo-due').value=t?.due_at?new Date(new Date(t.due_at).getTime()-new Date(t.due_at).getTimezoneOffset()*60000).toISOString().slice(0,16):'';$('#todo-priority').value=t?.priority||'normal';$('#todo-status').value=t?todoColumn(t):'backlog';$('#todo-error').textContent='';$('#todo-editor').showModal();}
+$('#todo-show-finished').addEventListener('change',()=>refreshTodos().catch(e=>banner(e.message)));
 $('#add-todo').addEventListener('click',()=>editTodo());
 $('#refresh-todos').addEventListener('click',()=>refreshTodos().catch(e=>banner(e.message)));
 $('#todo-form').addEventListener('submit',async e=>{e.preventDefault();try{const t=todoEditing;await api(t?'/api/todos/'+t.id:'/api/todos',t?'PUT':'POST',{title:$('#todo-title').value,description:$('#todo-description').value,due_at:$('#todo-due').value?new Date($('#todo-due').value).toISOString():null,priority:$('#todo-priority').value,board_column:$('#todo-status').value,scheduled_start_at:t?.scheduled_start_at||null,estimated_minutes:t?.estimated_minutes||null,expected_revision:t?.revision||null});$('#todo-editor').close();await refreshTodos();}catch(e){$('#todo-error').textContent=e.message;}});
