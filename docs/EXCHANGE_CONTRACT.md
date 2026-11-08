@@ -1,4 +1,4 @@
-# Airlock exchange contract — executable version 1
+# Airlock exchange contract — v1 releases and v2 return records
 
 Status: implemented prototype. The executable schemas live
 in `src/airlock_contracts`; the standalone receiver is `src/airlock_connector`. These packages do
@@ -28,7 +28,7 @@ and a random pairing code. The local owner imports it; Airlock creates an Ed2551
 Keychain. Claiming the invitation binds the instance to that public key. Retry with the same key is
 idempotent; a different key cannot replace it. The resulting device bearer stays in Keychain.
 
-The harness gets a distinct bearer credential with only projection reads and availability writes.
+The harness gets a distinct bearer credential with projection reads, availability writes, and permission-constrained v2 record writes.
 It never gets the device bearer, pairing invitation, or signing private keys. The connector admin's
 configuration belongs only on the connector host. Revocation is an admin CLI operation and disables
 both sides of that pairing. Replacing/rotating a pairing in place is not implemented: use a fresh
@@ -203,3 +203,128 @@ IDs, and lease checks in their UI/API/model retrieval. Reconcile only connector-
 unrelated records in an existing domain. The optional return channel
 contains only generic availability, not commands. TLS protects transport confidentiality; signing
 does not encrypt approved plaintext stored by the connector or recipient.
+
+
+## Automatic domain synchronization — connector 0.5.0
+
+Tracking: [automatic domain-scoped calendar and to-do synchronization](https://github.com/Perti-Laboratories/Airlock/issues/1).
+The v1 endpoints remain compatible. The v2 channel returns typed calendar/to-do records without
+changing v1 availability. Upgrade the connector and recipient adapter before updating the node.
+Older connectors continue serving v1; the node shows an upgrade-required return status.
+
+Once a connection is enabled and sharing is unpaused, eligible native records in the bound recipient
+domain automatically queue for Airlock under the saved type ceilings. No per-item send instruction.
+The initial snapshot includes existing eligible records in that domain; later changes reconcile it.
+Only calendar time blocks/title and to-do title/status/optional due date can cross. Other types,
+notes, descriptions, attendees, source credentials and raw source IDs are excluded.
+
+| Local type level | Recipient-to-node projection |
+| --- | --- |
+| Calendar private | No calendar records |
+| Calendar busy | Times and literal Busy |
+| Calendar original | Title (up to 160 characters) and times |
+| To-do private | No to-dos |
+| To-do title | Title (up to 160 characters) and open/done/archived status |
+| To-do title_due | The same plus due date |
+
+Local source/item reviews additionally constrain outbound release; an incoming item never grants
+broader export authority. Pause or disabling a type hides its mirrors immediately on local reads.
+Restoring permission requires a fresh snapshot rather than reviving withdrawn records.
+
+### Permission, delivery and application
+
+- `POST /v2/record-policy` (device credential): node-signed `RecordPolicy`, schema 2, direction
+  `record_policy`, monotonic revision, message ID, pairing, issue/expiry and `rules`. No content.
+- `GET /v2/harness/records` (harness credential): connector-signed attestation of that policy,
+  current return revision and acknowledged revision. The adapter verifies its pinned key/audience.
+- `PUT /v2/harness/records` (harness credential): `expected_revision`, `policy_message_id`, and up to
+  2,000 strict calendar/to-do projections. The adapter filters before transport; the connector
+  rejects fields/records exceeding permission, expired grants, duplicate IDs and stale revisions.
+- `GET /v2/records` (device credential): connector-signed `RecordSnapshot` with direction `records`,
+  schema 2, monotonic revision, permission message ID and a lease no longer than the permission.
+- `POST /v2/records/ack` (device credential): acknowledges the durably applied revision. The connector
+  separately reports queued and node-acknowledged revisions; delivery is not mistaken for application.
+
+Every permission/record envelope has at most a 15-minute lease. New permissions invalidate queued
+packages; unchanged permission renewals may retain the already admitted local mirror until its
+original lease expires. A null inbox means awaiting a snapshot, not deletion; an explicit empty
+snapshot withdraws all mirrors. Old/conflicting revisions cannot restore withdrawn records.
+The node persists its cursor before acknowledgement and retries after lost receipts. Unchanged
+recipient snapshots renew roughly every two minutes; changed records are checked every 30 seconds.
+Two polling cycles is a typical convergence time, not an SLA. Offline/sleep means stale, never free.
+
+### Ownership and isolation
+
+Each record has one authoritative source. Updates, completion and deletion happen at that source;
+titles and details on its mirror are read-only. Optional v3 board moves request a source-owned category change. A full snapshot atomically replaces only that connection's mirror set.
+Expected snapshot revisions reject concurrent writers; no LLM or last-write-wins merge is used.
+Recipient adapters derive opaque stable export IDs scoped to pairing, domain, type and source
+record; recurring occurrences have distinct identities. Imported node projections are excluded
+from return selection. Local return mirrors are stored separately from source/release tables and
+are available to the calendar, to-do list and chat without being eligible for re-export.
+
+Reassigning the recipient domain replaces the next snapshot with the new domain's eligible set.
+The adapter serializes source selection and transmission with route changes; old in-flight data
+may remain visible until reconciliation or lease expiry, but is never relabeled as new-domain data.
+Native records and private notes in either domain are preserved. The recipient must not retain an
+independent stale outbox after rebinding. Calendar coverage is the next 30 days, including bounded
+recurrence expansion; unsupported recurrence must fail explicitly rather than guess occurrences.
+
+Incoming calendar records exist only in Airlock. There are no Google writes, source-calendar edits,
+remote execution instructions or database tunnels. Only the optional v3 task-column operation can change a mirror’s source; arbitrary mirror editing is unsupported.
+
+### End-to-end acceptance
+
+1. Bind an upgraded recipient adapter to a domain with only synthetic records for this test.
+2. Pair the node, enable the connection, choose Calendar time blocks and To-dos title/status, and
+   resume sharing. Create a recipient-domain event and task with a unique private phrase in notes.
+3. Within two polling cycles, Airlock shows Busy and the task title/status. No private phrase,
+   original meeting title or due date appears in the wire, mirror, calendar, to-do list or chat.
+4. Edit the source event time, complete the source task, then cancel/delete them. Verify stable
+   mirror identities followed by withdrawal. Native Airlock records remain unchanged.
+5. Switch levels, pause/resume, disconnect/reconnect and move the recipient binding to another
+   synthetic domain. Verify field minimization, stale state, fresh reconciliation and no duplicates.
+6. Review/release one native Airlock task and calendar item. Confirm the recipient receives them
+   and does not send them back as new records. Mirror titles/details cannot be edited or approved for release.
+
+## Optional task board protocol — connector 0.6.0 / local 0.8.0
+
+The v1/v2 wire documents remain unchanged. `/v3/{role}/board` (GET/POST),
+`/v3/{role}/moves` (POST) and `/v3/{role}/receipts` (POST) form a separate sidecar;
+role is `device` or `harness`, authenticated with that role’s existing bearer.
+Device board publications and move requests use signed envelopes. Harness writes use its
+backend credential; the connector signs all inbox responses for the receiving peer.
+
+A board snapshot contains only already permitted task export IDs, a neutral column and a
+64-character opaque version token. `basis_revision` ties it to the current v1 release or v2
+return snapshot. It has its own monotonically increasing revision and at most a 15-minute
+lease. Unknown fields, unshared IDs, wrong roles, duplicate IDs, stale revisions and conflicting
+same-revision bodies are rejected. Columns are `backlog`, `working`, `agent_action`,
+`in_review`, `done`, `archive`. Legacy coarse statuses still travel in v1/v2 for old clients.
+
+A move contains an operation UUID, export ID, destination column, expected source token,
+current permission revision and expiry. At most 100 uncompleted live requests are accepted.
+The receiver validates its current source and permission, commits the task change with a
+local deduplication receipt atomically, then acknowledges `applied`, `conflict`, `rejected`
+or `expired`. A lost acknowledgement retries the receipt without repeating the source edit.
+The mirror stays in its confirmed column while pending. Subsequent snapshots provide the
+confirmed new column. There is no last-write-wins merge and no echo as a new task.
+
+The connector keeps operation receipts for a bounded one-day retry window (pruned on new
+moves) and returns at most 200 recent receipts. Peers retain processed operation receipts for
+one day beyond the original request lease. A replay after pruning fails its expired envelope.
+Permission changes or renewals can invalidate a queued request; refresh and retry deliberately.
+Pause/type-off/disconnect immediately disable local mirror actions and cancel unsent intents.
+A disconnected recipient cannot instantly learn a policy change; the node rechecks current
+permission before applying, and every permission expires. Moves already applied cannot be recalled.
+
+Agent Action is a board category across the boundary, never a workflow dispatch. A recipient
+must not interpret the column or a released title as permission to execute. Source-specific
+active workflow protections still apply. No task notes, descriptions, source IDs, credentials,
+contacts or memory enter this channel.
+
+Acceptance: create and review a synthetic local task with private notes; verify each column
+arrives at the recipient. Move its mirror back through Working, Review, Done and Archive,
+verify source confirmation and preserved notes. Repeat with a recipient-created task. Interrupt
+receipt delivery, make a concurrent source edit, withdraw a task and pause sharing. Confirm
+exactly one application, explicit conflicts/rejections, no duplicates and no private notes on wire.

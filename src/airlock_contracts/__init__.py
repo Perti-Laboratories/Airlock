@@ -160,3 +160,40 @@ def unseal(value, public, model, pairing_id, *, live=True):
     if live:
         body.check_live()
     return body
+
+
+class RecordRules(Strict):
+    calendar: Literal['private', 'busy', 'original'] = 'private'
+    todo: Literal['private', 'title', 'title_due'] = 'private'
+
+
+class RecordPolicy(Envelope):
+    """Node-signed standing permission, separate from the v1 release contract."""
+    schema_version: Literal[2] = 2
+    direction: Literal['record_policy'] = 'record_policy'
+    rules: RecordRules
+
+
+class RecordSnapshot(Envelope):
+    schema_version: Literal[2] = 2
+    direction: Literal['records'] = 'records'
+    policy_message_id: uuid.UUID
+    items: list[Projection] = Field(max_length=2000)
+
+    @model_validator(mode='after')
+    def unique(self):
+        if len({i.export_id for i in self.items}) != len(self.items):
+            raise ValueError('Duplicate export IDs.')
+        return self
+
+
+def filter_records(items, rules):
+    """Deterministic field ceiling, applied before transport and on every local read."""
+    rules = RecordRules.model_validate(rules)
+    result = []
+    for item in items:
+        if item.kind == 'calendar' and rules.calendar != 'private':
+            result.append(item.model_copy(update={'title': 'Busy'}) if rules.calendar == 'busy' else item)
+        elif item.kind == 'todo' and rules.todo != 'private':
+            result.append(item.model_copy(update={'due_at': None}) if rules.todo == 'title' else item)
+    return result

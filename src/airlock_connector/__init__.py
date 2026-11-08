@@ -1,1 +1,1 @@
-"""Independent connector: only released projections and minimal inbound availability."""
+"""Independent connector for approved projections and policy-bound return records."""

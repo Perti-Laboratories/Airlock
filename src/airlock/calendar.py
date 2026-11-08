@@ -335,4 +335,6 @@ def list_events(db, start, end, *, limit=2000, include_overlays=False):
     if include_overlays:
         from .exchange import overlays
         result.extend(overlays(db,start,end))
+        from .record_exchange import calendar_overlays
+        result.extend(calendar_overlays(db, start, end))
     return sorted(result, key=starts_at)

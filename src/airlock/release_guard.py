@@ -1,9 +1,9 @@
 """Serialize release-relevant commits with publication, independently of inference."""
 from sqlalchemy import event
 from sqlalchemy.orm import Session
-from .models import CalendarEvent, CalendarSource, Todo, ReleasePolicy, ReleaseOverride, ExchangeState
+from .models import CalendarEvent, CalendarSource, Todo, ReleasePolicy, ReleaseOverride, ExchangeState, RecordExchange
 
-PROTECTED = (CalendarEvent, CalendarSource, Todo, ReleasePolicy, ReleaseOverride, ExchangeState)
+PROTECTED = (CalendarEvent, CalendarSource, Todo, ReleasePolicy, ReleaseOverride, ExchangeState, RecordExchange)
 
 
 @event.listens_for(Session, 'before_flush')

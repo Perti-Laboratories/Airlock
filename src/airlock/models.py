@@ -415,3 +415,16 @@ class FeedAcknowledgement(DomainRecord, Base):
     __tablename__ = 'feed_acknowledgements'
     key: Mapped[str] = mapped_column(String(80), primary_key=True)
     acknowledged_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
+
+
+class RecordExchange(Base):
+    """Separate cursor for leased recipient-origin projections; never source records."""
+    __tablename__ = 'record_exchange'
+    domain_id: Mapped[uuid.UUID] = mapped_column(Uuid, ForeignKey('domains.id'), primary_key=True)
+    policy_revision: Mapped[int] = mapped_column(Integer, default=0)
+    policy: Mapped[dict | None] = mapped_column(JSON)
+    inbound_revision: Mapped[int] = mapped_column(Integer, default=0)
+    inbound_hash: Mapped[str | None] = mapped_column(String(64))
+    inbound: Mapped[dict | None] = mapped_column(JSON)
+    error: Mapped[str | None] = mapped_column(String(240))
+    board_state: Mapped[dict] = mapped_column(JSON, default=dict, server_default='{}')

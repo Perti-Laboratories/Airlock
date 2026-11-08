@@ -49,7 +49,10 @@ def main():
         print('Connector created. Import invitation.json in local Airlock. Give only harness.json to the harness. Keep config.json private.')
     elif args.command=='revoke':
         with store(directory/'connector.sqlite3') as db:
-            db.execute('UPDATE state SET revoked=1,release_body=NULL,overlay_body=NULL WHERE id=1')
+            db.execute('UPDATE state SET revoked=1,release_body=NULL,overlay_body=NULL,record_policy_body=NULL,records_body=NULL WHERE id=1')
+            for table in ('board_feeds', 'board_moves'):
+                if db.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name=?", (table,)).fetchone():
+                    db.execute('DELETE FROM '+table)
         print('Pairing revoked; current connector projections removed. Copies already ingested by a harness cannot be recalled.')
     else:
         import uvicorn
