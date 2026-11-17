@@ -130,6 +130,7 @@ def calendar_overlays(db, start, end):
             result.append(dict(id=ident, occurrence_id=ident, title=item.title, summary='',
                 start=item.start, end=item.end, timezone=item.timezone, all_day=item.all_day, blocks_time=True,
                 location='', recurrence_rule=None, status='scheduled', source='connector', source_id=None,
+                item_kind='event', context_type=None, scheduling_effect='hard',
                 local_note='', revision=snapshot.revision, source_refs=[], series_start=item.start,
                 series_end=item.end, read_only=True, origin='recipient'))
     return result

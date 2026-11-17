@@ -42,9 +42,15 @@ def attach_workspace_routes(app, sessions, writer, google, compute_lock, setting
     def calendar(start: datetime, end: datetime):
         from .exchange import availability_status
         from .record_exchange import status as record_status
+        from .releases import preview
         with sessions() as db:
+            events = list_events(db, start, end, include_overlays=True)
+            eligible = {p['export_key'] for p in preview(db)['items'] if p['candidate']}
+            for event in events:
+                key = event['occurrence_id'] if event['recurrence_rule'] else event['id']
+                event['release_eligible'] = event['source'] != 'connector' and key in eligible
             return {
-                "events": list_events(db, start, end, include_overlays=True),
+                "events": events,
                 "incoming_availability": availability_status(db),
                 "incoming_records": record_status(db),
                 "sources": [
