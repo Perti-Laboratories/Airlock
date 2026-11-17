@@ -75,6 +75,9 @@ downloads the local models, and configures startup after login. Docker must also
 The app, model service and database bind to loopback. The Python app and Ollama run natively;
 PostgreSQL/pgvector runs in Docker. The computer must be awake to process or sync.
 
+Imported Google events with identical start and end times retain their exact timestamps as
+nonblocking entries. They remain available locally and are excluded from planning releases.
+
 Setup does not connect an account or enable sharing. Google Calendar is optional and read-only;
 [register/provision your OAuth client](docs/GOOGLE_SETUP.md), then sign in through the browser.
 The source package contains no shared OAuth client, tokens or pairing credentials.

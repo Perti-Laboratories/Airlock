@@ -230,7 +230,11 @@ class RoutedItem(DomainRecord, TimestampMixin, Base):
 class CalendarEvent(DomainRecord, TimestampMixin, Base):
     __tablename__ = 'calendar_events'
     __table_args__ = (UniqueConstraint('source_id', 'external_event_id'),
-                     CheckConstraint('end_at > start_at', name='event_time_order'))
+                     CheckConstraint(
+                         "end_at > start_at OR (end_at = start_at AND source_id IS NOT NULL "
+                         "AND external_provider IS NOT DISTINCT FROM 'google_calendar' "
+                         "AND external_event_id IS NOT NULL AND NOT all_day AND NOT blocks_time "
+                         "AND recurrence_rule IS NULL)", name='event_time_order'))
     id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
     title: Mapped[str] = mapped_column(String(240))
     summary: Mapped[str] = mapped_column(Text, default='')
