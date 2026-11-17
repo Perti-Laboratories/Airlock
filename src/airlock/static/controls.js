@@ -94,7 +94,7 @@ async function refreshReleases({preserveDraft=false}={}) {
   for (const source of policy.sources) {
     const row = el('label', 'release-rule', source.name + (source.stale ? ' · stale' : ''));
     const select = el('select'); select.dataset.source = source.id;
-    for (const [value, text] of [['private','Keep private'], ['busy','Busy times only'], ['original','Original title + busy times']]) {
+    for (const [value, text] of [['private','Keep private'], ['busy','Times without titles'], ['original','Original titles + times']]) {
       const option = el('option', '', text); option.value = value; select.append(option);
     }
     select.value = policy.rules[source.id] || 'private'; row.append(select); rules.append(row);
@@ -126,6 +126,7 @@ async function refreshReleases({preserveDraft=false}={}) {
 $('#refresh-releases').addEventListener('click', () => refreshSharing().catch(e => banner(e.message)));
 const releaseTypes = [
  ['calendar','Calendar',[['busy','Time blocks only'],['original','Titles + time blocks']]],
+ ['context','Context windows',[['window','Time + category + preference'],['title','Title + time + category + preference']]],
  ['todo','To-dos',[['title','Titles + status'],['title_due','Titles + status + due dates']]],
  ['contacts','Contacts',[]],
 ];
@@ -134,7 +135,7 @@ function renderTypeRules(values){
  for(const [key,name,levels] of releaseTypes){
   const row=el('div','release-rule');
   const label=el('label','checkbox');const toggle=el('input');toggle.type='checkbox';
-  toggle.dataset.releaseType=key;toggle.checked=values[key]!=='private';toggle.disabled=!levels.length;
+  toggle.dataset.releaseType=key;toggle.checked=(values[key]||'private')!=='private';toggle.disabled=!levels.length;
   label.append(toggle,document.createTextNode(name));row.append(label);
   if(levels.length){
    const select=el('select');select.dataset.typeLevel=key;select.setAttribute('aria-label',name+' sharing level');
@@ -151,7 +152,7 @@ function draftTypeRules(){
    ?document.querySelector('[data-type-level="'+key+'"]').value:'private']))};
 }
 function updateReleaseDraft(){
- const hasTitles=draftTypeRules().calendar==='original'&&[...document.querySelectorAll('#release-source-rules select')].some(s=>s.value==='original');
+ const hasTitles=(draftTypeRules().calendar==='original'||draftTypeRules().context==='title')&&[...document.querySelectorAll('#release-source-rules select')].some(s=>s.value==='original');
  $('#release-title-confirmation').hidden=!hasTitles||!releaseState.dirty;
  $('#release-save').disabled=!releaseState.dirty;
  if(typeof renderSharingStatus==='function')renderSharingStatus();

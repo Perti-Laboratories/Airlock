@@ -75,9 +75,9 @@
     <div class="panel-heading"><h3>Sharing levels</h3><button id="release-save" class="primary" disabled>Save rules</button></div>
     <input id="release-paused" type="checkbox" hidden checked>
     <div id="release-type-rules"></div>
-    <details class="inline-help"><summary>Calendar sources &amp; limits</summary><p>A source must be allowed here to share its events. Event reviews may approve exceptions, within the Calendar level above.</p><div id="release-source-rules"></div></details>
-    <label id="release-title-confirmation" class="checkbox" hidden><input id="release-title-ack" type="checkbox">Allow original meeting titles to leave.</label>
-    <p class="muted">These levels apply in both directions. Calendar details, to-do notes, and attendees stay private. Local to-dos need a release review before leaving; connected-domain items arrive automatically.</p>
+    <details class="inline-help"><summary>Calendar sources &amp; limits</summary><p>A source must be allowed here to share its events. Event reviews may approve exceptions, within the Calendar or Context level above.</p><div id="release-source-rules"></div></details>
+    <label id="release-title-confirmation" class="checkbox" hidden><input id="release-title-ack" type="checkbox">Allow original event and context titles to leave.</label>
+    <p class="muted">These levels apply in both directions. Context is soft guidance, never busy time; even its category and preference can reveal information. Calendar details, to-do notes, and attendees stay private. Local to-dos need a release review before leaving; connected-domain items arrive automatically.</p>
     <button id="sharing-todos" type="button" class="text-button">Review to-do sharing ↗</button><p id="release-save-status" role="status"></p>
   </form>
   <details class="control-card" id="connection-options"><summary>Connection &amp; incoming availability</summary>
@@ -89,7 +89,7 @@
     </form><p id="exchange-details" class="muted" role="status"></p>
     <details class="inline-help"><summary>About pausing and disconnecting</summary><p>Pausing withdraws released records on the next successful sync. Disconnecting stops all exchange; the receiver’s active view expires within 15 minutes. Copies already received cannot be recalled.</p></details>
   </details>
-  <div class="agenda-heading"><div><h3>Calendar preview</h3><span id="release-preview-count" class="muted"></span></div><button id="refresh-releases" class="secondary">Refresh</button></div>
+  <div class="agenda-heading"><div><h3>Calendar &amp; context preview</h3><span id="release-preview-count" class="muted"></span></div><button id="refresh-releases" class="secondary">Refresh</button></div>
   <div id="release-preview"></div>
 </section>
 

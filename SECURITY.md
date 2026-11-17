@@ -68,3 +68,12 @@ Active agent work on a recipient can reject a move. Expired, withdrawn, paused, 
 changed tasks cannot be silently overwritten. A pause cannot undo a move already applied.
 Requests expire after at most 15 minutes; a permission renewal can reject a pending request
 so the user must refresh and retry. Old clients retain coarse status sync and read-only mirrors.
+
+
+Context-window exchange is separately off by default. Even generic context can disclose
+scheduling preferences or a category such as childcare or location; those enums require
+explicit opt-in, and titles require a higher disclosure level. Only the strict context
+projection crosses the planning boundary. Private notes, literal locations, attendees
+and source metadata are never included. Context is enforced as nonblocking in storage,
+wire validation and adapters. See `docs/EXCHANGE_CONTRACT.md` for version requirements
+and withdrawal/retention limits.
