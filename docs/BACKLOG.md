@@ -8,8 +8,8 @@ ceilings, with source-owned edits, signed permissions and replay-safe replacemen
 knowledge service demonstrates reviewed contribution and retrieval using local synthetic data.
 
 Calendar includes day/week/month views with stable source colors and local context windows.
-Context is soft scheduling guidance, not busy time; it stays local and is excluded from the
-current connector contract. Outbound indicators show policy eligibility, not delivery receipts.
+Context is soft scheduling guidance, not busy time. Connector 0.7 adds independently opt-in
+context projections, with titles optional and private details excluded. Outbound indicators show policy eligibility, not delivery receipts.
 
 Next work:
 
@@ -21,7 +21,6 @@ Next work:
   titles, dates and private details remain source-owned.
 - Minimal reviewed notifications without message bodies or source credentials.
 - Optional bounded remote task dispatch with separate local permission and result-release review.
-- Optional context-window exchange with a separate reviewed disclosure policy and wire contract.
 - Additional providers, recurring to-dos and Windows support.
 
 No planned integration should require either side to expose its full database or raw conversation.

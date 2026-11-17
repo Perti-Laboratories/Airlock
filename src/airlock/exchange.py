@@ -8,7 +8,7 @@ import httpx
 from pydantic import Field
 from .schemas import StrictModel
 from sqlalchemy import select
-from airlock_contracts import ReleaseSnapshot, AvailabilitySnapshot, CalendarProjection, TodoProjection, keys, seal, unseal, MAX_BYTES
+from airlock_contracts import ReleaseSnapshot, AvailabilitySnapshot, CalendarProjection, ContextProjection, TodoProjection, keys, seal, unseal, MAX_BYTES
 from .google import Keychain
 from .memory import DOMAIN, ActionError, audited, restore_audit_after_rollback
 from .models import ExchangeState, ExportIdentity, Todo, CalendarSource, LocalState, now
@@ -86,6 +86,7 @@ def status(db):
         doc = ReleaseSnapshot.model_validate_json(s.outbox['document'])
         package = {'calendar_count': sum(i.kind == 'calendar' for i in doc.items),
             'todo_count': sum(i.kind == 'todo' for i in doc.items),
+            'context_count': sum(i.kind == 'context' for i in doc.items),
             'sources_fresh': doc.sources_fresh, 'expires_at': doc.expires_at,
             'expired': doc.expires_at <= now()}
     from .record_exchange import status as record_status
@@ -108,8 +109,11 @@ def content(db):
     items=[]
     for entry in p['items']:
         if entry['candidate']:
-            key='calendar:'+entry['export_key']
-            items.append(CalendarProjection(export_id=export_id(db,key),**entry['candidate']))
+            candidate = entry['candidate']
+            kind = candidate.get('kind', 'calendar')
+            key=kind+':'+entry['export_key']
+            projection = ContextProjection if kind == 'context' else CalendarProjection
+            items.append(projection(export_id=export_id(db,key),**candidate))
     policy=policy_payload(db)
     todo_level = policy['type_rules']['todo']
     if not policy['paused'] and todo_level != 'private':

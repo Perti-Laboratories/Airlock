@@ -5,7 +5,7 @@ import uuid
 from datetime import UTC, date, datetime, timedelta
 from typing import Annotated, Literal
 from zoneinfo import ZoneInfo
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, model_validator, model_serializer
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey, Ed25519PublicKey
 
 MAX_BYTES = 1_000_000
@@ -51,6 +51,16 @@ class CalendarProjection(Interval):
     busy: Literal[True] = True
 
 
+class ContextProjection(Interval):
+    """Explicitly approved soft guidance; cannot become a busy block."""
+    kind: Literal['context'] = 'context'
+    export_id: uuid.UUID
+    title: str = Field(min_length=1, max_length=160)
+    busy: Literal[False] = False
+    context_type: Literal['availability', 'childcare', 'energy', 'household', 'location', 'routine']
+    scheduling_effect: Literal['informational', 'prefer', 'prefer_avoid', 'strongly_avoid']
+
+
 class TodoProjection(Strict):
     kind: Literal['todo'] = 'todo'
     export_id: uuid.UUID
@@ -65,7 +75,7 @@ class TodoProjection(Strict):
         return self
 
 
-Projection = Annotated[CalendarProjection | TodoProjection, Field(discriminator='kind')]
+Projection = Annotated[CalendarProjection | ContextProjection | TodoProjection, Field(discriminator='kind')]
 
 
 class Availability(Interval):
@@ -163,6 +173,15 @@ def unseal(value, public, model, pairing_id, *, live=True):
 
 
 class RecordRules(Strict):
+    context: Literal['private', 'window', 'title'] = 'private'
+
+    @model_serializer(mode='wrap')
+    def compatible_rules(self, handler):
+        result = handler(self)
+        if self.context == 'private':
+            result.pop('context', None)  # Preserve the existing wire shape when disabled.
+        return result
+
     calendar: Literal['private', 'busy', 'original'] = 'private'
     todo: Literal['private', 'title', 'title_due'] = 'private'
 
@@ -194,6 +213,8 @@ def filter_records(items, rules):
     for item in items:
         if item.kind == 'calendar' and rules.calendar != 'private':
             result.append(item.model_copy(update={'title': 'Busy'}) if rules.calendar == 'busy' else item)
+        elif item.kind == 'context' and rules.context != 'private':
+            result.append(item.model_copy(update={'title': 'Context'}) if rules.context == 'window' else item)
         elif item.kind == 'todo' and rules.todo != 'private':
             result.append(item.model_copy(update={'due_at': None}) if rules.todo == 'title' else item)
     return result

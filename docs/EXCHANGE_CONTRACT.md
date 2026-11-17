@@ -328,3 +328,41 @@ arrives at the recipient. Move its mirror back through Working, Review, Done and
 verify source confirmation and preserved notes. Repeat with a recipient-created task. Interrupt
 receipt delivery, make a concurrent source edit, withdraw a task and pause sharing. Confirm
 exactly one application, explicit conflicts/rejections, no duplicates and no private notes on wire.
+
+
+## Context projections (connector 0.7)
+
+Context windows have a separate `context` type ceiling: `private` (default), `window`
+(time, all-day flag, timezone, enumerated category and soft preference), or `title`
+(the same fields plus the approved title). The generic title is `Context`, never `Busy`.
+They do not inherit calendar-type approval. Local source restrictions and per-event
+exceptions still apply; original titles require explicit acknowledgement. A source
+restricted to times cannot expose context titles. Review the preview before enabling:
+category and preference can reveal information even without a title.
+
+The strict `kind: context` projection contains an opaque export ID, title, interval,
+`busy: false`, `context_type` (availability, childcare, energy, household, location or
+routine) and `scheduling_effect` (informational, prefer, prefer_avoid or strongly_avoid).
+It rejects hard/busy context, descriptions, notes, attendees, location text, arbitrary
+metadata and unknown fields. Recurrences are expanded into bounded occurrences.
+
+The same signed standing permission controls recipient-origin context. Full snapshots,
+15-minute leases, revision/hash checks, policy-bound acknowledgements, immediate local
+read gating and source-owned edits apply unchanged. Received context remains a read-only
+calendar overlay; it is never released back as a local source or converted to busy time.
+Disabling context withdraws it in the next release; local incoming visibility stops
+immediately. A receiver may retain old copies under its own retention policy.
+
+Upgrade the connector and harness adapter to context support before enabling it. While
+context is private the signed return rules omit the new field, retaining the old wire
+shape. Older strict consumers reject context-enabled permissions or snapshots rather
+than interpreting context as a meeting. This is fail-closed, not seamless mixed-version
+support. Do not enable on an older deployment expecting calendar/task sync to continue.
+
+Acceptance test: pair isolated test peers, leave calendar and to-dos private, and add a
+local context window with private details. With context off, neither direction accepts
+it. Enable context with times/category/preference and a time-only local-source rule:
+the other side sees `Context`, not the title or details, and no busy conflict. Opt into
+titles and approve the source title rule; the same opaque ID updates. Create a context
+on the recipient side in the bound domain: Airlock displays it dashed and nonblocking,
+without echoing it back. Disable context and verify withdrawal and immediate local hide.

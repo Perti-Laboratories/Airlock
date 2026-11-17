@@ -15,7 +15,7 @@ def rules(db):
     state = db.get(ExchangeState, DOMAIN)
     if not state or not state.enabled or not policy or policy.paused:
         return RecordRules()
-    return RecordRules(**{key: policy.type_rules[key] for key in ('calendar', 'todo')})
+    return RecordRules(**{key: policy.type_rules.get(key, 'private') for key in ('calendar', 'todo', 'context')})
 
 
 def sync(db, state, credentials, wire):
@@ -102,11 +102,12 @@ def status(db):
     items, snapshot = visible(db)
     row = db.get(RecordExchange, DOMAIN)
     allowed = rules(db)
-    enabled = allowed.calendar != 'private' or allowed.todo != 'private'
+    enabled = allowed.calendar != 'private' or allowed.todo != 'private' or allowed.context != 'private'
     return {'enabled': enabled, 'stale': not enabled or snapshot is None,
         'revision': row.inbound_revision if row else 0,
         'expires_at': snapshot.expires_at.isoformat() if snapshot else None,
         'calendar_count': sum(i.kind == 'calendar' for i in items),
+        'context_count': sum(i.kind == 'context' for i in items),
         'todo_count': sum(i.kind == 'todo' for i in items), 'error': row.error if row else None}
 
 
@@ -120,7 +121,7 @@ def calendar_overlays(db, start, end):
     state = db.get(ExchangeState, DOMAIN)
     result = []
     for item in items:
-        if item.kind != 'calendar':
+        if item.kind not in ('calendar', 'context'):
             continue
         a, b = datetime.fromisoformat(item.start), datetime.fromisoformat(item.end)
         if item.all_day:
@@ -128,9 +129,11 @@ def calendar_overlays(db, start, end):
         if a < end and b > start:
             ident = mirror_id(state, item)
             result.append(dict(id=ident, occurrence_id=ident, title=item.title, summary='',
-                start=item.start, end=item.end, timezone=item.timezone, all_day=item.all_day, blocks_time=True,
+                start=item.start, end=item.end, timezone=item.timezone, all_day=item.all_day, blocks_time=item.kind == 'calendar',
                 location='', recurrence_rule=None, status='scheduled', source='connector', source_id=None,
-                item_kind='event', context_type=None, scheduling_effect='hard',
+                item_kind='context_window' if item.kind == 'context' else 'event',
+                context_type=item.context_type if item.kind == 'context' else None,
+                scheduling_effect=item.scheduling_effect if item.kind == 'context' else 'hard',
                 local_note='', revision=snapshot.revision, source_refs=[], series_start=item.start,
                 series_end=item.end, read_only=True, origin='recipient'))
     return result

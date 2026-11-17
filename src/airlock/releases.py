@@ -15,6 +15,7 @@ Mode = Literal["private", "busy", "original"]
 
 class TypeRules(StrictModel):
     # These are disclosure ceilings, never a substitute for source/item approval.
+    context: Literal['private', 'window', 'title'] = 'private'
     calendar: Literal["private", "busy", "original"] = "private"
     todo: Literal["private", "title", "title_due"] = "private"
     contacts: Literal["private"] = "private"
@@ -61,7 +62,7 @@ def policy_payload(db):
         "revision": row.revision if row else 0,
         "paused": row.paused if row else True,
         "rules": row.rules if row else {},
-        "type_rules": row.type_rules if row else TypeRules().model_dump(),
+        "type_rules": TypeRules.model_validate(row.type_rules if row else {}).model_dump(),
         "sources": [
             {"id": "local", "name": "Locally created calendar events", "stale": False}
         ]
@@ -86,7 +87,7 @@ def save_policy(db, body):
     type_rules = body.type_rules.model_dump() if body.type_rules is not None else (
         current["type_rules"] if db.get(ReleasePolicy, DOMAIN) else legacy_type_rules()
     )
-    if (type_rules["calendar"] == "original" and "original" in body.rules.values()
+    if ((type_rules["calendar"] == "original" or type_rules["context"] == "title") and "original" in body.rules.values()
             and not body.acknowledge_titles):
         raise ActionError("Explicitly allow original titles before saving that rule.")
 
@@ -171,29 +172,28 @@ def preview(db):
         if override:
             # An outdated private exception must never fall back to a broader source rule.
             mode = "private" if review_needed else override.mode
-        calendar_level = policy["type_rules"]["calendar"]
-        if calendar_level == "busy" and mode in ("original", "reviewed"):
+        is_context = event.get('item_kind') == 'context_window'
+        level = policy['type_rules']['context' if is_context else 'calendar']
+        if level in ('busy', 'window') and mode in ("original", "reviewed"):
             mode = "busy"
         reason, candidate = "", None
         if policy["paused"]:
             reason = "All releases paused"
-        elif calendar_level == "private":
-            reason = "Calendar sharing is off"
+        elif level == "private":
+            reason = "Context sharing is off" if is_context else "Calendar sharing is off"
         elif review_needed:
             reason = "Event or rules changed; review the exception again"
         elif mode == "private":
             reason = "Keep inside this workspace"
         elif stale.get(source, True):
             reason = "Source is stale; fresh sync required"
-        elif event.get('item_kind') == 'context_window':
-            reason = 'Local context; not a busy-time release'
-        elif not event["blocks_time"]:
+        elif not is_context and not event["blocks_time"]:
             reason = "Free or declined event; no busy block"
         elif mode == "original" and len(event["title"]) > 160:
             reason = "Title needs a shorter reviewed replacement"
         else:
             title = (
-                "Busy"
+                ("Context" if is_context else "Busy")
                 if mode == "busy"
                 else (override.display_title if mode == "reviewed" else event["title"])
             )
@@ -205,6 +205,9 @@ def preview(db):
                 "end": event["end"],
                 "timezone": event["timezone"],
             }
+            if is_context:
+                candidate.update(kind='context', busy=False, context_type=event['context_type'],
+                                 scheduling_effect=event['scheduling_effect'])
             reason = "Eligible under current rules"
         # This wrapper is local review information; only candidate is the payload preview.
         items.append(
