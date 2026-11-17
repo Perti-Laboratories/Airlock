@@ -67,7 +67,7 @@ function updateContextEditor(){const context=$('#event-kind').value==='context_w
 $('#event-kind').addEventListener('change',updateContextEditor);
 $('#add-event').addEventListener('click',()=>editEvent());
 $('#add-context').addEventListener('click',()=>editEvent(null,'context_window'));
-for(const mode of ['day','week','month'])$('#calendar-mode-'+mode).addEventListener('click',()=>{calendarState.view=mode;calendarState.day=null;refreshCalendar().catch(e=>banner(e.message));});
+for(const mode of ['day','week','month'])$('#calendar-mode-'+mode).addEventListener('click',()=>{calendarState.anchor=calendarState.day||calendarState.anchor;calendarState.view=mode;calendarState.day=null;refreshCalendar().catch(e=>banner(e.message));});
 for(const [id,delta] of [['calendar-prev',-1],['calendar-next',1]])$('#'+id).addEventListener('click',()=>{if(calendarState.view==='month'){const d=new Date(calendarState.anchor.slice(0,7)+'-01T12:00:00Z');d.setUTCMonth(d.getUTCMonth()+delta);calendarState.anchor=d.toISOString().slice(0,10);}else calendarState.anchor=CalendarLayout.addDays(calendarState.anchor,delta*(calendarState.view==='week'?7:1));calendarState.day=null;refreshCalendar().catch(e=>banner(e.message));});
 $('#calendar-today').addEventListener('click',()=>{calendarState.anchor=dayKey(Date.now());calendarState.day=null;refreshCalendar().catch(e=>banner(e.message));});
 $('#calendar-zone').addEventListener('change',()=>{calendarState.zone=$('#calendar-zone').value;refreshCalendar().catch(e=>banner(e.message));});
