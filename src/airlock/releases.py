@@ -185,6 +185,8 @@ def preview(db):
             reason = "Keep inside this workspace"
         elif stale.get(source, True):
             reason = "Source is stale; fresh sync required"
+        elif event.get('item_kind') == 'context_window':
+            reason = 'Local context; not a busy-time release'
         elif not event["blocks_time"]:
             reason = "Free or declined event; no busy block"
         elif mode == "original" and len(event["title"]) > 160:

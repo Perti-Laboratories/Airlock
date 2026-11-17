@@ -234,7 +234,13 @@ class CalendarEvent(DomainRecord, TimestampMixin, Base):
                          "end_at > start_at OR (end_at = start_at AND source_id IS NOT NULL "
                          "AND external_provider IS NOT DISTINCT FROM 'google_calendar' "
                          "AND external_event_id IS NOT NULL AND NOT all_day AND NOT blocks_time "
-                         "AND recurrence_rule IS NULL)", name='event_time_order'))
+                         "AND recurrence_rule IS NULL)", name='event_time_order'),
+                     CheckConstraint(
+                         "item_kind <> 'context_window' OR (NOT blocks_time AND scheduling_effect IN "
+                         "('informational', 'prefer', 'prefer_avoid', 'strongly_avoid') "
+                         "AND context_type IS NOT NULL AND context_type IN "
+                         "('availability', 'childcare', 'energy', 'household', 'location', 'routine'))",
+                         name='context_is_nonblocking'))
     id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
     title: Mapped[str] = mapped_column(String(240))
     summary: Mapped[str] = mapped_column(Text, default='')
@@ -244,6 +250,7 @@ class CalendarEvent(DomainRecord, TimestampMixin, Base):
     all_day: Mapped[bool] = mapped_column(Boolean, default=False)
     recurrence_rule: Mapped[str | None] = mapped_column(Text)
     item_kind: Mapped[str] = mapped_column(String(40), default='event')
+    context_type: Mapped[str | None] = mapped_column(String(80))
     scheduling_effect: Mapped[str] = mapped_column(String(40), default='hard')
     blocks_time: Mapped[bool] = mapped_column(Boolean, default=True)
     location: Mapped[str] = mapped_column(String(320), default='')

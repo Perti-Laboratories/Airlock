@@ -215,6 +215,7 @@ def overlays(db,start,end):
             result.append(dict(id=str(item.export_id),occurrence_id=str(item.export_id),title='Unavailable',
                 summary='',start=item.start,end=item.end,timezone=item.timezone,all_day=item.all_day,blocks_time=True,
                 location='',recurrence_rule=None,status='scheduled',source='connector',source_id=None,local_note='',
+                item_kind='event',context_type=None,scheduling_effect='hard',origin='availability',
                 revision=snapshot.revision,source_refs=[],series_start=item.start,series_end=item.end))
     return result
 

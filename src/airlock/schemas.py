@@ -34,6 +34,9 @@ class CalendarAction(StrictModel):
     timezone: str = Field(max_length=80)
     all_day: bool
     blocks_time: bool
+    item_kind: Literal['event', 'context_window'] = 'event'
+    context_type: Literal['availability', 'childcare', 'energy', 'household', 'location', 'routine'] | None = None
+    scheduling_effect: Literal['hard', 'informational', 'prefer', 'prefer_avoid', 'strongly_avoid'] | None = None
     summary: str = Field(default="",max_length=4000)
     location: str = Field(default="",max_length=320)
     recurrence_rule: str | None = None
