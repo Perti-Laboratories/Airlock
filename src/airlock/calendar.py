@@ -6,7 +6,7 @@ from datetime import UTC, date, datetime, time, timedelta
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 from dateutil.rrule import rrulestr
 from pydantic import Field, model_validator
-from sqlalchemy import select, or_
+from sqlalchemy import select, or_, and_
 from .schemas import StrictModel
 from .models import (
     CalendarEvent,
@@ -292,7 +292,9 @@ def list_events(db, start, end, *, limit=2000, include_overlays=False):
             CalendarEvent.status != "cancelled",
             CalendarEvent.start_at < end,
             or_(
-                CalendarEvent.end_at > start, CalendarEvent.recurrence_rule.is_not(None)
+                CalendarEvent.end_at > start, CalendarEvent.recurrence_rule.is_not(None),
+                and_(CalendarEvent.end_at == CalendarEvent.start_at,
+                     CalendarEvent.start_at >= start),
             ),
         )
         .order_by(CalendarEvent.start_at)
