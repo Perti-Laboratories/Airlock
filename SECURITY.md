@@ -14,6 +14,10 @@ and outbound-sharing permissions for the environment where it runs.
 - Calendar and task fields pass deterministic schemas and local type/source/item rules before signing.
   A model cannot grant release permission. Notes, documents, contacts and memory are not in the
   external protocol. Reviewed titles still need human judgment about their content.
+- Google-derived released fields remain subject to Limited Use restrictions. Recipient operators
+  must not use them, or transfer them to AI services that use them, for generalized model training.
+  Review the destination's terms and training opt-ins before enabling sharing. Field minimization
+  cannot enforce an independent recipient's behavior or recall its retained copies.
 - HTTPS validates the remote host. Ed25519 signatures, pinned keys, distinct device/recipient tokens,
   monotonic revisions and leases guard the exchange. Signatures do not encrypt stored plaintext.
 - The laptop only makes outbound requests to its explicitly paired connector. No remote shell,
