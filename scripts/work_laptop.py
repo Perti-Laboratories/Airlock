@@ -1,5 +1,6 @@
 """First installation on a fresh Mac. No personal state or remote pairing is imported."""
 import argparse
+import json
 import os
 from pathlib import Path
 import shutil
@@ -9,6 +10,23 @@ import sys
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 ROOT = Path(__file__).resolve().parents[1]
+
+
+def google_client_path(value):
+    """Validate before installing; do not copy registration material into the repo."""
+    path = Path(value).expanduser().resolve()
+    try:
+        raw = path.read_bytes()
+        if len(raw) > 20_000:
+            raise ValueError()
+        client = json.loads(raw)['installed']
+        if (not isinstance(client['client_id'], str)
+                or not client['client_id'].endswith('.apps.googleusercontent.com')
+                or not isinstance(client['client_secret'], str) or not client['client_secret']):
+            raise ValueError()
+    except (OSError, ValueError, KeyError, TypeError):
+        raise SystemExit('Supply a valid Google Desktop OAuth JSON file; its contents were not printed.') from None
+    return path
 
 
 def preflight(root, timezone):
@@ -44,6 +62,8 @@ def main():
     parser.add_argument('--check', action='store_true', help='Check prerequisites without installing anything')
     parser.add_argument('--no-login', action='store_true', help='Do not install automatic startup after login')
     parser.add_argument('--timezone', default='America/New_York')
+    parser.add_argument('--google-client', type=google_client_path,
+                        help='Desktop OAuth JSON to provision into this Mac’s Keychain before sign-in')
     args = parser.parse_args()
     preflight(ROOT, args.timezone)
     if args.check:
@@ -55,6 +75,8 @@ def main():
     def run(command, **kwargs):
         subprocess.run(command, cwd=ROOT, env=env, check=True, **kwargs)
     run(['bash', 'scripts/setup.sh'])
+    if args.google_client:
+        run([str(ROOT / '.venv/bin/airlock'), 'google-provision', str(args.google_client)])
     run(['bash', 'scripts/start.sh'])
     print('Downloading local model weights. This may take several minutes.', flush=True)
     model_env = {**env, 'OLLAMA_HOST':'127.0.0.1:11435', 'OLLAMA_NO_CLOUD':'1'}

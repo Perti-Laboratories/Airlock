@@ -2,11 +2,12 @@
 
 import re
 import uuid
+from typing import Literal
 from datetime import UTC, date, datetime, time, timedelta
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 from dateutil.rrule import rrulestr
 from pydantic import Field, model_validator
-from sqlalchemy import select, or_
+from sqlalchemy import select, or_, and_
 from .schemas import StrictModel
 from .models import (
     CalendarEvent,
@@ -27,12 +28,25 @@ class EventBody(StrictModel):
     timezone: str = Field(default="America/New_York", max_length=80)
     all_day: bool = False
     blocks_time: bool = True
+    item_kind: Literal['event', 'context_window'] = 'event'
+    context_type: Literal['availability', 'childcare', 'energy', 'household', 'location', 'routine'] | None = None
+    scheduling_effect: Literal['hard', 'informational', 'prefer', 'prefer_avoid', 'strongly_avoid'] | None = None
     location: str = Field(default="", max_length=320)
     recurrence_rule: str | None = Field(default=None, max_length=240)
     expected_revision: int | None = Field(default=None, ge=1)
 
     @model_validator(mode="after")
     def valid_interval(self):
+        if self.item_kind == 'context_window':
+            if self.scheduling_effect == 'hard':
+                raise ValueError('Context is soft guidance, never a hard availability block.')
+            self.blocks_time = False
+            self.context_type = self.context_type or 'routine'
+            self.scheduling_effect = self.scheduling_effect or 'informational'
+        else:
+            if self.context_type is not None or self.scheduling_effect not in (None, 'hard', 'informational'):
+                raise ValueError('Use a context window for soft scheduling preferences.')
+            self.scheduling_effect = 'hard' if self.blocks_time else 'informational'
         start, end = self.times()
         if end <= start or end - start > timedelta(days=366):
             raise ValueError("An event needs an ordered interval of at most one year.")
@@ -127,6 +141,9 @@ def event_payload(event, start=None, end=None):
         timezone=event.timezone,
         all_day=event.all_day,
         blocks_time=event.blocks_time,
+        item_kind=event.item_kind,
+        context_type=event.context_type,
+        scheduling_effect=event.scheduling_effect,
         location=event.location,
         recurrence_rule=event.recurrence_rule,
         status=event.status,
@@ -164,6 +181,9 @@ def record_change(db, event, action, refs, *, route=True):
                 "object_id": str(event.id),
                 "action": action,
                 "revision": event.revision,
+                "item_kind": event.item_kind,
+                "context_type": event.context_type,
+                "scheduling_effect": event.scheduling_effect,
             },
         )
         db.add(item)
@@ -210,6 +230,9 @@ def save_event(db, body, refs, *, event_id=None):
                     CalendarEvent.all_day == body.all_day,
                     CalendarEvent.timezone == body.timezone,
                     CalendarEvent.blocks_time == body.blocks_time,
+                    CalendarEvent.item_kind == body.item_kind,
+                    CalendarEvent.context_type == body.context_type,
+                    CalendarEvent.scheduling_effect == body.scheduling_effect,
                     CalendarEvent.recurrence_rule == body.recurrence_rule,
                 )
             )
@@ -236,12 +259,14 @@ def save_event(db, body, refs, *, event_id=None):
             "timezone",
             "all_day",
             "blocks_time",
+            "item_kind",
+            "context_type",
+            "scheduling_effect",
             "location",
             "recurrence_rule",
         ):
             setattr(event, name, getattr(body, name))
         event.start_at, event.end_at = start, end
-        event.scheduling_effect = "hard" if body.blocks_time else "informational"
         db.flush()
         record_change(db, event, action, refs)
         return {
@@ -292,7 +317,9 @@ def list_events(db, start, end, *, limit=2000, include_overlays=False):
             CalendarEvent.status != "cancelled",
             CalendarEvent.start_at < end,
             or_(
-                CalendarEvent.end_at > start, CalendarEvent.recurrence_rule.is_not(None)
+                CalendarEvent.end_at > start, CalendarEvent.recurrence_rule.is_not(None),
+                and_(CalendarEvent.end_at == CalendarEvent.start_at,
+                     CalendarEvent.start_at >= start),
             ),
         )
         .order_by(CalendarEvent.start_at)
@@ -335,4 +362,6 @@ def list_events(db, start, end, *, limit=2000, include_overlays=False):
     if include_overlays:
         from .exchange import overlays
         result.extend(overlays(db,start,end))
+        from .record_exchange import calendar_overlays
+        result.extend(calendar_overlays(db, start, end))
     return sorted(result, key=starts_at)

@@ -2,12 +2,25 @@
 
 from datetime import UTC, datetime, timedelta
 from zoneinfo import ZoneInfo
+from pydantic import model_validator
 from sqlalchemy import select
 from airlock_core.calendar import google_calendar_route_payload
 from .google import GoogleError
 from .calendar import EventBody, record_change
 from .memory import DOMAIN, audited, restore_audit_after_rollback
 from .models import CalendarEvent, CalendarSource, LocalState, now
+
+
+class ImportedEventBody(EventBody):
+    """Provider point events keep their exact timestamps without blocking time."""
+
+    @model_validator(mode="after")
+    def valid_interval(self):
+        start, end = self.times()
+        if not self.all_day and not self.recurrence_rule and start == end:
+            self.blocks_time = False
+            return self
+        return super().valid_interval()
 
 
 def source_payload(source):
@@ -142,7 +155,7 @@ def sync_source(db, google, source):
                         if parsed.tzinfo
                         else parsed.isoformat()
                     )
-            body = EventBody(
+            body = ImportedEventBody(
                 title=route["title"][:240],
                 summary=route["content"][:4000],
                 start=meta["start_at"],
@@ -160,6 +173,7 @@ def sync_source(db, google, source):
             event.last_synced_at = now()
             continue
         start, end = body.times()
+        busy = body.blocks_time
         action = "updated" if event else "created"
         if event is None:
             event = CalendarEvent(

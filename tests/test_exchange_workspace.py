@@ -138,6 +138,81 @@ def test_disable_does_not_contact_connector(exchange):
     with sessions() as db:assert db.get(ExchangeState,DOMAIN).error is None
 
 
+def test_google_import_release_update_and_withdrawal(exchange):
+    """Provider mirrors cross the same field gate, without exporting provenance."""
+    from airlock.calendar_sync import run_sync
+    from test_calendar_workspace import Provider, raw, source
+
+    c, sessions, receiver, config, wire, tick = exchange
+    source_id = source(sessions)
+    stamp = (now() + timedelta(days=1)).replace(microsecond=0)
+    event = raw(
+        key='PRIVATE_PROVIDER_ID', summary='Approved meeting',
+        description='PRIVATE_DESCRIPTION', location='PRIVATE_LOCATION',
+        attendees=[{'email': 'PRIVATE_ATTENDEE@example.invalid'}],
+        start={'dateTime': stamp.isoformat()},
+        end={'dateTime': (stamp + timedelta(hours=1)).isoformat()},
+    )
+
+    def ingest(items, token):
+        result = run_sync(sessions, Provider([{'items': items, 'nextSyncToken': token}]), source_id, force=True)
+        assert result['status'] == 'completed'
+
+    def rules(mode, paused=False):
+        p = c.get('/api/release-policy').json()
+        response = c.put('/api/release-policy', json={
+            'expected_revision': p['revision'], 'paused': paused,
+            'rules': {str(source_id): mode}, 'acknowledge_titles': True,
+            'type_rules': {'calendar': 'original'},
+        })
+        assert response.status_code == 200, response.text
+
+    ingest([event], 'first')
+    allow(c)  # Allowing locally created events does not approve a Google source.
+    tick()
+    assert feed(receiver, config)['items'] == []
+
+    rules('busy')
+    tick()
+    first = feed(receiver, config)['items'][0]
+    assert first['title'] == 'Busy'
+    assert set(first) == {'kind', 'export_id', 'title', 'busy', 'all_day', 'start', 'end', 'timezone'}
+    assert 'PRIVATE_' not in json.dumps(first)
+    assert str(source_id) not in json.dumps(first)
+
+    rules('original')
+    tick()
+    assert feed(receiver, config)['items'][0]['title'] == 'Approved meeting'
+    updated = {**event, 'etag': 'v2', 'summary': 'Updated meeting',
+               'start': {'dateTime': (stamp + timedelta(hours=2)).isoformat()},
+               'end': {'dateTime': (stamp + timedelta(hours=3)).isoformat()}}
+    ingest([updated], 'second')
+    tick()
+    current = feed(receiver, config)['items'][0]
+    assert current['export_id'] == first['export_id']
+    assert current['title'] == 'Updated meeting' and current['start'] != first['start']
+    assert 'PRIVATE_' not in json.dumps(feed(receiver, config))
+
+    with sessions() as db:
+        db.get(CalendarSource, source_id).last_synced_at = now() - timedelta(minutes=16)
+        db.commit()
+    tick()
+    assert feed(receiver, config)['items'] == []
+    ingest([], 'fresh')
+    tick()
+    assert feed(receiver, config)['items'][0]['export_id'] == first['export_id']
+
+    rules('original', paused=True)
+    tick()
+    assert feed(receiver, config)['items'] == []
+    rules('original')
+    tick()
+    assert len(feed(receiver, config)['items']) == 1
+    ingest([{'id': event['id'], 'status': 'cancelled'}], 'cancelled')
+    tick()
+    assert feed(receiver, config)['items'] == []
+
+
 def test_transport_origin_restrictions():
     for value in ['http://example.com','http://localhost:8742','https://user:pass@example.com','https://example.com/path','https://example.com/?secret=1']:
         with pytest.raises(Exception):validate_endpoint(value)

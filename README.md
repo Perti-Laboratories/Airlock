@@ -9,7 +9,8 @@ across otherwise separate domains. Each side keeps its own database, credentials
 
 For example, a work calendar can release **busy times without meeting details**, and a selected task
 can release a **reviewed title and completion status without its notes**. The receiving planner can
-return generic **Unavailable** blocks. Connecting the two does not grant access to either side's
+automatically return eligible **calendar events and to-dos from its connected domain**, using the
+same saved type levels. Generic **Unavailable** blocks from separately selected calendars remain optional. Connecting the two does not grant access to either side's
 full workspace.
 
 ## What can cross the boundary?
@@ -20,8 +21,10 @@ full workspace.
 | To-dos | Off by default; individually reviewed titles/status, optionally approved due dates |
 | Notes, documents, chat, saved memory, contacts and company knowledge | No external connector export |
 | Incoming availability | Optional generic time blocks; no original titles or details |
-| Incoming tasks or remote agent instructions | Not implemented; no remote execution API |
+| Incoming calendar events and to-dos | Automatic domain-scoped mirrors under the saved type levels; task columns can move from either side |
+| Remote agent instructions | Not implemented; no remote execution API |
 
+Local type levels constrain both directions. Source/item reviews additionally constrain local outbound release. Notes stay on their source side, and mirrors cannot be re-exported as new records.
 Local rules determine what leaves. Pairing does not enable sharing. Pause withdraws the active
 projection on the next successful exchange; leases limit how long disconnected recipients should
 use it. These controls cannot recall information a recipient has already copied.
@@ -35,13 +38,16 @@ Local sources → Airlock's private workspace → explicit release rules
                                                 ↕
                                       Your planning application
 
-Optional return: generic availability → connector → Airlock polls and verifies
+Return: permitted domain records / optional availability → connector → Airlock polls and verifies
 ```
 
 The laptop initiates the connection: no public laptop port, inbound webhook, tunnel or remote shell.
 Live transport uses HTTPS with certificate verification. Separate device and recipient credentials,
 signed snapshots, revision checks and expiring records constrain the exchange. Source credentials
-remain on the local machine. Local model inference and embeddings use Ollama, with no hosted-model
+remain on the local machine. With connector 0.6.0, an enabled, unpaused connection automatically
+exchanges permitted domain records; no per-item send action is needed on the recipient side.
+The task board has Backlog, Working, Agent Action and In Review, with Done and Archive available under Show finished. Moving a connected task queues a source-confirmed update; details remain editable only at source. Agent Action is categorization only across the connection and never starts remote work.
+Updates normally converge within two polling cycles while both sides are awake and online. Local model inference and embeddings use Ollama, with no hosted-model
 fallback. See [the exchange contract](docs/EXCHANGE_CONTRACT.md) and [security model](SECURITY.md).
 
 **This is an early prototype, not a security certification or a data-loss-prevention guarantee.**
@@ -58,7 +64,7 @@ Use a permanent folder outside cloud-synced storage:
 ```sh
 mkdir -p ~/Applications
 cd ~/Applications
-git clone https://github.com/Perti-Laboratories/Airlock.git
+git clone --branch work-pilot --single-branch https://github.com/Perti-Laboratories/Airlock.git
 cd Airlock
 python3.13 scripts/work_laptop.py --check
 python3.13 scripts/work_laptop.py
@@ -69,10 +75,23 @@ downloads the local models, and configures startup after login. Docker must also
 The app, model service and database bind to loopback. The Python app and Ollama run natively;
 PostgreSQL/pgvector runs in Docker. The computer must be awake to process or sync.
 
+Imported Google events with identical start and end times retain their exact timestamps as
+nonblocking entries. They remain available locally and are excluded from planning releases.
+
 Setup does not connect an account or enable sharing. Google Calendar is optional and read-only;
 [register/provision your OAuth client](docs/GOOGLE_SETUP.md), then sign in through the browser.
 The source package contains no shared OAuth client, tokens or pairing credentials.
 See [installation and first-run tests](docs/WORK_LAPTOP_START.md).
+
+If supplied with a Desktop OAuth registration, pass
+`--google-client /absolute/path/to/airlock-desktop-client.json` to the installer.
+It provisions this Mac's Keychain so **Connect Google** is ready; account sign-in still happens locally.
+The registration file is separate from the public source and contains no account tokens.
+
+For an existing `work-pilot` checkout, run `python3.13 scripts/update_work_laptop.py --check`,
+then `python3.13 scripts/update_work_laptop.py`. The updater backs up the database, stops login
+supervision and owned processes, applies only a fast-forward release, migrates, checks readiness,
+and restores login startup if previously enabled. Keep backups on an approved local encrypted disk.
 
 ## Optional company knowledge prototype
 

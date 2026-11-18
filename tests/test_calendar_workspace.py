@@ -62,6 +62,7 @@ def test_calendar_crud_is_routed_not_fact_memory_and_stale_edit_fails(workspace)
         {"start": "2026-11-01T01:30", "end": "2026-11-01T02:30"},
         {"start": "2026-11-01T10:00-04:00", "end": "2026-11-01T11:00-04:00"},
         {"all_day": True, "start": "2026-11-01", "end": "2026-11-01"},
+        {"start": "2026-11-01T10:00", "end": "2026-11-01T10:00", "blocks_time": False},
         {"recurrence_rule": "FREQ=SECONDLY"},
     ],
 )
@@ -130,6 +131,90 @@ def source(sessions):
         db.add(s)
         db.commit()
         return s.id
+
+
+@pytest.mark.parametrize("offsetless", [False, True])
+def test_google_point_events_preserve_instants_and_never_release(workspace, offsetless):
+    c, _, sessions, _ = workspace
+    key = source(sessions)
+    point = datetime.now(UTC).replace(microsecond=0) + timedelta(days=1)
+    from zoneinfo import ZoneInfo
+    stamp = (point.astimezone(ZoneInfo("America/New_York")).replace(tzinfo=None).isoformat()
+             if offsetless else point.isoformat())
+    item = raw(start={"dateTime": stamp}, end={"dateTime": stamp})
+    result = run_sync(sessions, Provider([{"items": [item], "nextSyncToken": "point1"}]), key, force=True)
+    assert result["status"] == "completed"
+    with sessions() as db:
+        row = db.scalar(select(CalendarEvent))
+        identity = row.id
+        assert row.start_at == row.end_at == point
+        assert not row.blocks_time and row.scheduling_effect == "informational"
+        assert row.source_refs[0]["event_id"] == "event-one"
+        # Include a point at the window start, exclude one exactly at its end.
+        assert len(list_events(db, point, point + timedelta(hours=1))) == 1
+        assert list_events(db, point - timedelta(hours=1), point) == []
+    policy = c.get("/api/release-policy").json()
+    assert c.put("/api/release-policy", json={
+        "expected_revision": policy["revision"], "paused": False,
+        "rules": {str(key): "busy"}, "type_rules": {"calendar": "busy"},
+    }).status_code == 200
+    preview = c.get("/api/release-preview").json()
+    assert preview["eligible_count"] == 0
+    assert len(preview["items"]) == 1 and preview["items"][0]["candidate"] is None
+    # A later provider duration restores normal busy semantics on the same record.
+    item.update(etag="v2", start={"dateTime": point.isoformat()},
+                end={"dateTime": (point + timedelta(hours=1)).isoformat()})
+    assert run_sync(sessions, Provider([{"items": [item], "nextSyncToken": "point2"}]), key, force=True)["status"] == "completed"
+    with sessions() as db:
+        row = db.get(CalendarEvent, identity)
+        assert row.blocks_time and row.scheduling_effect == "hard"
+        assert row.end_at - row.start_at == timedelta(hours=1)
+    assert c.get("/api/release-preview").json()["eligible_count"] == 1
+    item.update(etag="v3", end={"dateTime": point.isoformat()})
+    assert run_sync(sessions, Provider([{"items": [item], "nextSyncToken": "point3"}]), key, force=True)["status"] == "completed"
+    assert c.get("/api/release-preview").json()["eligible_count"] == 0
+    with sessions() as db:
+        assert db.get(CalendarEvent, identity).start_at == db.get(CalendarEvent, identity).end_at
+
+
+@pytest.mark.parametrize("invalid", [
+    {"end": {"dateTime": "2026-11-02T13:00:00Z"}},
+    {"start": {"date": "2026-11-02"}, "end": {"date": "2026-11-02"}},
+    {"end": {"dateTime": "not-a-date"}},
+    {"end": {"dateTime": "2028-11-02T14:00:00Z"}},
+])
+def test_invalid_google_intervals_still_roll_back_entire_sync(workspace, invalid):
+    _, _, sessions, _ = workspace
+    key = source(sessions)
+    assert run_sync(sessions, Provider([{"items": [raw()], "nextSyncToken": "old"}]), key, force=True)["status"] == "completed"
+    items = [raw(etag="v2", summary="Should roll back"), raw("invalid", **invalid)]
+    assert run_sync(sessions, Provider([{"items": items, "nextSyncToken": "bad"}]), key, force=True)["status"] == "failed"
+    with sessions() as db:
+        row = db.scalar(select(CalendarEvent))
+        assert row.title == "Provider meeting" and row.revision == 1
+        assert db.scalar(select(func.count()).select_from(CalendarEvent)) == 1
+        assert db.get(CalendarSource, key).sync_token == "old"
+
+
+@pytest.mark.parametrize("change", [
+    {"source_id": None}, {"external_provider": None},
+    {"external_provider": "other"}, {"external_event_id": None},
+    {"all_day": True}, {"blocks_time": True}, {"recurrence_rule": "FREQ=DAILY"},
+])
+def test_database_only_allows_nonblocking_google_point_events(workspace, change):
+    from sqlalchemy.exc import IntegrityError
+    _, _, sessions, _ = workspace
+    key = source(sessions)
+    point = datetime(2026, 11, 2, 14, tzinfo=UTC)
+    fields = dict(domain_id=DOMAIN, source_id=key, external_provider="google_calendar",
+                  external_event_id="point", title="Synthetic point", start_at=point,
+                  end_at=point, blocks_time=False, all_day=False)
+    fields.update(change)
+    with sessions() as db:
+        db.add(CalendarEvent(**fields))
+        with pytest.raises(IntegrityError):
+            db.flush()
+        db.rollback()
 
 
 def test_google_pagination_incremental_move_cancel_and_ownership(workspace):

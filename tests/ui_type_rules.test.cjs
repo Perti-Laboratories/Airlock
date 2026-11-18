@@ -34,7 +34,7 @@ test('saving submits type ceilings and source restrictions together',async()=>{
  const w=setup();w.$('#release-paused').checked=false;
  await w.$('#release-policy-form').handlers.submit({preventDefault(){}});
  const [path,method,body]=w.calls[0];assert.equal(path,'/api/release-policy');assert.equal(method,'PUT');
- assert.deepEqual(JSON.parse(JSON.stringify(body.type_rules)),w.values);
+ assert.deepEqual(JSON.parse(JSON.stringify(body.type_rules)),{...w.values,context:'private'});
  assert.deepEqual(JSON.parse(JSON.stringify(body.rules)),{local:'original'});
  assert.equal(body.expected_revision,8);
 });
@@ -45,4 +45,17 @@ test('original title acknowledgement appears only when calendar ceiling permits 
  assert.equal(w.$('#release-title-confirmation').hidden,false);
  w.document.querySelector('[data-release-type="calendar"]').checked=false;w.run('updateReleaseDraft()');
  assert.equal(w.$('#release-title-confirmation').hidden,true);
+});
+
+test('context is independently opt-in and original titles require acknowledgement',()=>{
+ const w=setup();
+ const toggle=w.document.querySelector('[data-release-type="context"]');
+ assert.equal(toggle.checked,false);
+ toggle.checked=true;toggle.handlers.change();
+ assert.equal(w.run('draftTypeRules().context'),'window');
+ w.document.querySelector('[data-type-level="context"]').value='title';
+ w.run('releaseState.dirty=true;updateReleaseDraft()');
+ assert.equal(w.$('#release-title-confirmation').hidden,false);
+ toggle.checked=false;toggle.handlers.change();
+ assert.equal(w.run('draftTypeRules().context'),'private');
 });

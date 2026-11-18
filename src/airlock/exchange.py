@@ -8,7 +8,7 @@ import httpx
 from pydantic import Field
 from .schemas import StrictModel
 from sqlalchemy import select
-from airlock_contracts import ReleaseSnapshot, AvailabilitySnapshot, CalendarProjection, TodoProjection, keys, seal, unseal, MAX_BYTES
+from airlock_contracts import ReleaseSnapshot, AvailabilitySnapshot, CalendarProjection, ContextProjection, TodoProjection, keys, seal, unseal, MAX_BYTES
 from .google import Keychain
 from .memory import DOMAIN, ActionError, audited, restore_audit_after_rollback
 from .models import ExchangeState, ExportIdentity, Todo, CalendarSource, LocalState, now
@@ -86,9 +86,11 @@ def status(db):
         doc = ReleaseSnapshot.model_validate_json(s.outbox['document'])
         package = {'calendar_count': sum(i.kind == 'calendar' for i in doc.items),
             'todo_count': sum(i.kind == 'todo' for i in doc.items),
+            'context_count': sum(i.kind == 'context' for i in doc.items),
             'sources_fresh': doc.sources_fresh, 'expires_at': doc.expires_at,
             'expired': doc.expires_at <= now()}
-    return {'paired':True,'endpoint':s.endpoint,'enabled':s.enabled,'allow_availability':s.allow_availability,
+    from .record_exchange import status as record_status
+    return {'records': record_status(db), 'paired':True,'endpoint':s.endpoint,'enabled':s.enabled,'allow_availability':s.allow_availability,
         'revision':s.revision,'acknowledged_revision':s.acknowledged_revision,'last_sent_at':s.last_sent_at,
         'error':s.error,'inbound_revision':s.inbound_revision,'inbound_expires_at':inbound_expiry,
         'queued':s.revision>s.acknowledged_revision, 'last_package':package}
@@ -107,15 +109,18 @@ def content(db):
     items=[]
     for entry in p['items']:
         if entry['candidate']:
-            key='calendar:'+entry['export_key']
-            items.append(CalendarProjection(export_id=export_id(db,key),**entry['candidate']))
+            candidate = entry['candidate']
+            kind = candidate.get('kind', 'calendar')
+            key=kind+':'+entry['export_key']
+            projection = ContextProjection if kind == 'context' else CalendarProjection
+            items.append(projection(export_id=export_id(db,key),**candidate))
     policy=policy_payload(db)
     todo_level = policy['type_rules']['todo']
     if not policy['paused'] and todo_level != 'private':
         for t in db.scalars(select(Todo).where(Todo.domain_id==DOMAIN,Todo.deleted.is_(False))):
             if t.release_title and t.release_revision==t.revision:
                 items.append(TodoProjection(export_id=export_id(db,'todo:'+str(t.id)),title=t.release_title,
-                    status=t.status,due_at=t.due_at if t.release_due and todo_level == 'title_due' else None))
+                    status=t.status if t.status in ('done','archived') else 'open',due_at=t.due_at if t.release_due and todo_level == 'title_due' else None))
     selected=[s for s in policy['sources'] if policy['type_rules']['calendar'] != 'private'
         and policy['rules'].get(s['id'],'private')!='private']
     observations=[s.last_synced_at for s in db.scalars(select(CalendarSource).where(CalendarSource.domain_id==DOMAIN))
@@ -181,6 +186,10 @@ def exchange_once(sessions, *, vault=None, transport=None, force=False):
                         db.info.pop("audit_attempts", None)
                     audited(db,'exchange.inbox.ack',{'revision':incoming.revision},
                         lambda:wire.request('POST','/v1/inbox/ack',{'revision':incoming.revision}))
+            from . import record_exchange
+            record_exchange.sync(db, s, credentials, wire)
+            from . import task_board
+            task_board.sync(db, s, credentials, wire)
             s.error=None;s.failures=0;s.next_attempt_at=now()+timedelta(seconds=30)
             db.commit()
         except Exception:
@@ -210,6 +219,7 @@ def overlays(db,start,end):
             result.append(dict(id=str(item.export_id),occurrence_id=str(item.export_id),title='Unavailable',
                 summary='',start=item.start,end=item.end,timezone=item.timezone,all_day=item.all_day,blocks_time=True,
                 location='',recurrence_rule=None,status='scheduled',source='connector',source_id=None,local_note='',
+                item_kind='event',context_type=None,scheduling_effect='hard',origin='availability',
                 revision=snapshot.revision,source_refs=[],series_start=item.start,series_end=item.end))
     return result
 

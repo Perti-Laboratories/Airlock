@@ -14,12 +14,18 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from pydantic import Field
 from airlock_contracts import (Strict, Signed, Availability, AvailabilitySnapshot,
-    ReleaseSnapshot, MAX_BYTES, seal, unseal, utcnow)
+    ReleaseSnapshot, RecordPolicy, RecordSnapshot, Projection, filter_records, MAX_BYTES, seal, unseal, utcnow)
 
 
 class Pair(Strict):
     code: str = Field(min_length=32, max_length=160)
     public_key: str = Field(min_length=44, max_length=44)
+
+
+class RecordWrite(Strict):
+    expected_revision: int = Field(ge=0)
+    policy_message_id: uuid.UUID
+    items: list[Projection] = Field(max_length=2000)
 
 
 class OverlayWrite(Strict):
@@ -47,6 +53,13 @@ def initialize(path):
     Path(path).parent.mkdir(parents=True, exist_ok=True, mode=0o700)
     with store(path) as db:
         db.execute('CREATE TABLE IF NOT EXISTS state (id INTEGER PRIMARY KEY CHECK(id=1), public_key TEXT, revoked INTEGER NOT NULL DEFAULT 0, release_revision INTEGER NOT NULL DEFAULT 0, release_hash TEXT, release_body TEXT, overlay_revision INTEGER NOT NULL DEFAULT 0, overlay_body TEXT, overlay_ack INTEGER NOT NULL DEFAULT 0)')
+        columns = {row[1] for row in db.execute('PRAGMA table_info(state)')}
+        for name, spec in {'record_policy_revision': 'INTEGER NOT NULL DEFAULT 0',
+                'record_policy_hash': 'TEXT', 'record_policy_body': 'TEXT',
+                'records_revision': 'INTEGER NOT NULL DEFAULT 0', 'records_body': 'TEXT',
+                'records_ack': 'INTEGER NOT NULL DEFAULT 0'}.items():
+            if name not in columns:
+                db.execute(f'ALTER TABLE state ADD COLUMN {name} {spec}')
         db.execute('INSERT OR IGNORE INTO state(id) VALUES(1)')
     Path(path).chmod(0o600)
 
@@ -211,4 +224,78 @@ def create_connector(config, path):
             db.execute('UPDATE state SET overlay_ack=max(overlay_ack,?) WHERE id=1',(body.revision,))
         return {'status':'applied'}
 
+    @app.post('/v2/record-policy')
+    def record_policy(body: Signed, request: Request):
+        auth(request, 'device')
+        with store(path) as db:
+            row = db.execute('SELECT * FROM state WHERE id=1').fetchone()
+            if row['revoked']:
+                raise HTTPException(403, 'Pairing unavailable.')
+            try:
+                policy = unseal(body, row['public_key'], RecordPolicy, config['pairing_id'])
+            except Exception:
+                raise HTTPException(422, 'Invalid signed record policy.') from None
+            digest = hashlib.sha256(body.document.encode()).hexdigest()
+            if policy.revision < row['record_policy_revision'] or (policy.revision == row['record_policy_revision']
+                    and digest != row['record_policy_hash']):
+                raise HTTPException(409, 'Stale or conflicting policy.')
+            if policy.revision > row['record_policy_revision']:
+                # A changed grant invalidates the queued payload, even if a harness is offline.
+                db.execute('UPDATE state SET record_policy_revision=?,record_policy_hash=?,record_policy_body=?,records_body=NULL WHERE id=1',
+                    (policy.revision, digest, policy.model_dump_json()))
+            return {'revision': policy.revision, 'message_id': str(policy.message_id), 'status': 'applied'}
+
+    @app.get('/v2/harness/records')
+    def records_status(request: Request):
+        row = auth(request, 'harness')
+        policy = RecordPolicy.model_validate_json(row['record_policy_body']) if row['record_policy_body'] else None
+        return {'policy': seal(policy, config['private_key']) if policy else None,
+                'revision': row['records_revision'], 'acknowledged_revision': row['records_ack']}
+
+    @app.put('/v2/harness/records')
+    def records_write(body: RecordWrite, request: Request):
+        auth(request, 'harness')
+        with store(path) as db:
+            row = db.execute('SELECT * FROM state WHERE id=1').fetchone()
+            if row['revoked']:
+                raise HTTPException(403, 'Pairing unavailable.')
+            try:
+                policy = RecordPolicy.model_validate_json(row['record_policy_body'])
+                policy.check_live()
+            except Exception:
+                raise HTTPException(409, 'No current record permission.') from None
+            if body.expected_revision != row['records_revision'] or body.policy_message_id != policy.message_id:
+                raise HTTPException(409, 'Refresh record revision and permission.')
+            if filter_records(body.items, policy.rules) != body.items:
+                raise HTTPException(422, 'Records exceed permission.')
+            timestamp = utcnow()
+            try:
+                snapshot = RecordSnapshot(message_id=uuid.uuid4(), pairing_id=config['pairing_id'],
+                    revision=row['records_revision']+1, issued_at=timestamp,
+                    expires_at=min(policy.expires_at, timestamp+timedelta(minutes=15)),
+                    policy_message_id=policy.message_id, items=body.items)
+                signed = seal(snapshot, config['private_key'])
+            except ValueError:
+                raise HTTPException(422, 'Invalid records.') from None
+            db.execute('UPDATE state SET records_revision=?,records_body=? WHERE id=1',
+                (snapshot.revision, json.dumps(signed)))
+            return {'revision': snapshot.revision, 'status': 'queued'}
+
+    @app.get('/v2/records')
+    def records_inbox(request: Request):
+        row = auth(request, 'device')
+        return {'snapshot': json.loads(row['records_body']) if row['records_body'] else None}
+
+    @app.post('/v2/records/ack')
+    def records_ack(body: Ack, request: Request):
+        auth(request, 'device')
+        with store(path) as db:
+            row = db.execute('SELECT * FROM state WHERE id=1').fetchone()
+            if row['revoked'] or body.revision != row['records_revision']:
+                raise HTTPException(409, 'Invalid record receipt.')
+            db.execute('UPDATE state SET records_ack=max(records_ack,?) WHERE id=1', (body.revision,))
+        return {'status': 'applied'}
+
+    from .board import attach
+    attach(app, config, path, store, auth)
     return app

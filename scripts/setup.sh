@@ -3,6 +3,9 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 umask 077
 PYTHON_BIN="${AIRLOCK_PYTHON:-python3}"
+if [ -z "${AIRLOCK_PYTHON:-}" ] && [ -x .venv/bin/python ]; then
+    PYTHON_BIN=.venv/bin/python
+fi
 command -v docker >/dev/null || { echo 'Install Docker Desktop first.'; exit 1; }
 command -v ollama >/dev/null || { echo 'Install Ollama first.'; exit 1; }
 "$PYTHON_BIN" - <<'PY'
