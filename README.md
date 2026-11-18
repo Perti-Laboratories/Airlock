@@ -64,7 +64,7 @@ Use a permanent folder outside cloud-synced storage:
 ```sh
 mkdir -p ~/Applications
 cd ~/Applications
-git clone https://github.com/Perti-Laboratories/Airlock.git
+git clone --branch work-pilot --single-branch https://github.com/Perti-Laboratories/Airlock.git
 cd Airlock
 python3.13 scripts/work_laptop.py --check
 python3.13 scripts/work_laptop.py
@@ -82,6 +82,16 @@ Setup does not connect an account or enable sharing. Google Calendar is optional
 [register/provision your OAuth client](docs/GOOGLE_SETUP.md), then sign in through the browser.
 The source package contains no shared OAuth client, tokens or pairing credentials.
 See [installation and first-run tests](docs/WORK_LAPTOP_START.md).
+
+If supplied with a Desktop OAuth registration, pass
+`--google-client /absolute/path/to/airlock-desktop-client.json` to the installer.
+It provisions this Mac's Keychain so **Connect Google** is ready; account sign-in still happens locally.
+The registration file is separate from the public source and contains no account tokens.
+
+For an existing `work-pilot` checkout, run `python3.13 scripts/update_work_laptop.py --check`,
+then `python3.13 scripts/update_work_laptop.py`. The updater backs up the database, stops login
+supervision and owned processes, applies only a fast-forward release, migrates, checks readiness,
+and restores login startup if previously enabled. Keep backups on an approved local encrypted disk.
 
 ## Optional company knowledge prototype
 

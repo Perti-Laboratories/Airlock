@@ -11,23 +11,32 @@ Desktop, complete its first-run setup, and enable its startup at login. The inst
 install system software or accept software licenses. It downloads Python dependencies, a database
 image and local model weights, so allow network access, several GB of disk space and time.
 
-Use either the Git checkout at the supplied commit SHA, or the source-only archive.
+Use the tested `work-pilot` branch (recommended for updates), or the source-only archive.
 The archive includes `AIRLOCK_BUILD.json` with its commit and per-file checksums. Its adjacent
 `.sha256` verifies transfer integrity; it is not a publisher signature. Never transfer the personal
 Mac's `.env`, data folder, Keychain, database, logs or existing pairing invitation.
 
-From the new Airlock folder:
+Fresh installation with a separately supplied Google Desktop app configuration:
 
 ```sh
+mkdir -p ~/Applications
+cd ~/Applications
+git clone --branch work-pilot --single-branch https://github.com/Perti-Laboratories/Airlock.git
+cd Airlock
 python3.13 scripts/work_laptop.py --check
-python3.13 scripts/work_laptop.py
+python3.13 scripts/work_laptop.py --google-client "$HOME/Downloads/airlock-desktop-client.json"
 ```
+
+Use the actual location of the supplied JSON. Do not transfer account tokens, `.env`, a database,
+personal pairing or Keychain export. Omit `--google-client` only for local-only setup; Google can be
+provisioned later. The JSON is stored in this Mac's Keychain, not copied into the checkout.
 
 The default timezone is America/New_York; use `--timezone Europe/London` (or another IANA name)
 if needed. Add `--no-login` to skip automatic startup. Installation generates fresh local secrets,
 creates a Work workspace, downloads qwen3:8b and nomic-embed-text, checks readiness, and installs
-startup after login. It never enables sharing, pairs a recipient, connects Google, or installs
-company memory. It refuses existing local state/volumes and occupied ports rather than reusing them.
+startup after login. It never enables sharing, pairs a recipient, signs into Google, or installs
+company memory. The optional Google flag only prepares the registration for browser sign-in.
+It refuses existing local state/volumes and occupied ports rather than reusing them.
 
 Open **http://127.0.0.1:8741**. Keep this folder in place: background startup refers to it.
 You can close Terminal. Airlock restarts after login and retries if Docker is still starting.
@@ -61,7 +70,7 @@ does not authorize external release. See [Google setup](GOOGLE_SETUP.md) for reg
 ## Enable connected planner sharing later
 
 Use a fresh connector identity for each node. Do not reuse another node’s invitation.
-Provision a **new work-node connector identity and a corresponding connected planner domain**; the current
+Provision a **new work-node connector identity and route it to an existing or new connected planner domain**; the current
 connector pilot holds one pairing per deployment. Give this laptop only its node invitation, and
 keep the separate harness credential with connected planner. This is still an operator setup step.
 
@@ -72,6 +81,33 @@ and must be explicitly enabled; it never writes to Google. Company memory stays 
 this first work pilot: its existing prototype only supports a separate local demo service.
 
 ## Recovery and updates
+
+From an installed Git checkout on `work-pilot`:
+
+```sh
+cd ~/Applications/Airlock
+python3.13 scripts/update_work_laptop.py --check
+python3.13 scripts/update_work_laptop.py
+```
+
+Do not pull new code before invoking the updater: it backs up the installed version before changing
+the checkout. It refuses dirty or divergent source history, pins the fetched commit, removes this
+installation's login supervision, stops its app/model processes, backs up the database to
+`data/backups`, installs dependencies and migrations, and checks readiness before restoring login
+startup. `.env`, Google Keychain entries, source selection and pairing counters are preserved.
+Use `--backup-dir /approved/encrypted/location` to choose another backup parent directory.
+
+If an update fails, leave the workspace and backup in place. The updater does not roll code back
+over an upgraded database. Fix the reported prerequisite, then run `./scripts/setup.sh`,
+`./scripts/start.sh`, `.venv/bin/python scripts/pilot.py check`, and finally
+`.venv/bin/python scripts/pilot.py login-install` if login startup was previously enabled.
+For data recovery, restore into an empty workspace using `pilot.py restore-empty --path <backup>`;
+external connections start disabled and pairing/cursors require reconciliation. A source-only archive
+has no Git tracking branch: use a Git installation for the managed update flow.
+
+Older pilots without the updater must first remove login supervision, stop the app, and make a backup
+with `pilot.py backup --path <new-backup-folder>`, then use `git pull --ff-only origin work-pilot`,
+`./scripts/setup.sh`, `./scripts/start.sh`, and the readiness/login commands above.
 
 If setup stops after creating `.env`, do not delete it or the database to retry. Complete the missing
 prerequisite, run `./scripts/setup.sh` and `./scripts/start.sh`, then finish model download/readiness:
