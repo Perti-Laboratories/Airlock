@@ -32,6 +32,8 @@ Disconnect removes local account tokens and pauses sources but retains imported 
 It does not revoke the grant at Google or erase local history. Use Google account settings to revoke
 third-party access. Changing accounts requires an explicit disconnect before connecting again.
 
+See the [reviewer walkthrough](GOOGLE_REVIEWER_GUIDE.md) and [data deletion instructions](DATA_DELETION.md).
+
 References: [Desktop OAuth](https://developers.google.com/identity/protocols/oauth2/native-app),
 [Calendar scopes](https://developers.google.com/workspace/calendar/api/auth),
 [Workspace OAuth controls](https://developers.google.com/identity/protocols/oauth2/production-readiness/google-workspace).
