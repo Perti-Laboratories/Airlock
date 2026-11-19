@@ -11,7 +11,7 @@ from urllib.parse import urlsplit
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
 MAX_SETUP = 32768
-AAD = b'airlock-setup-v1'
+AAD = b'airlock-setup-v2'
 
 
 def origin(value, allow_loopback=False):
@@ -51,7 +51,7 @@ def parse_code(code, allow_loopback=False):
     version, address, key = code.strip().split('.')
     endpoint = origin(decode(address).decode(), allow_loopback)
     secret = decode(key)
-    if version != 'airlock1' or len(secret) != 32:
+    if version != 'airlock2' or len(secret) != 32:
         raise ValueError('Invalid setup code.')
     return endpoint, secret
 
@@ -61,7 +61,8 @@ def prepare(endpoint, google, invitation, ttl=86400, *, allow_loopback=False):
     if not 60 <= ttl <= 86400:
         raise ValueError('Setup lifetime must be between one minute and 24 hours.')
     expires = int(time.time()) + ttl
-    payload = {'version': 1, 'endpoint': endpoint, 'expires_at': expires,
+    invitation = {**invitation, 'code': secrets.token_urlsafe(48)}
+    payload = {'version': 2, 'endpoint': endpoint, 'expires_at': expires,
                'google_client': google, 'invitation': invitation}
     if len(json.dumps(payload).encode()) > MAX_SETUP // 2:
         raise ValueError('Setup configuration is too large.')
@@ -71,15 +72,16 @@ def prepare(endpoint, google, invitation, ttl=86400, *, allow_loopback=False):
     cipher = AESGCM(secret).encrypt(nonce, json.dumps(payload).encode(), AAD)
     envelope = {'id': secrets.token_hex(16), 'expires_at': expires,
                 'token_hash': hashlib.sha256(proof(secret).encode()).hexdigest(),
+                'pairing_hash': hashlib.sha256(invitation['code'].encode()).hexdigest(),
                 'ciphertext': encode(nonce + cipher)}
-    return 'airlock1.' + encode(endpoint.encode()) + '.' + encode(secret), envelope
+    return 'airlock2.' + encode(endpoint.encode()) + '.' + encode(secret), envelope
 
 
 def decrypt(secret, ciphertext, endpoint):
     raw = decode(ciphertext)
     payload = json.loads(AESGCM(secret).decrypt(raw[:12], raw[12:], AAD))
     if (set(payload) != {'version', 'endpoint', 'expires_at', 'google_client', 'invitation'}
-            or payload['version'] != 1 or payload['endpoint'] != endpoint
+            or payload['version'] != 2 or payload['endpoint'] != endpoint
             or not time.time() < payload['expires_at'] <= time.time() + 86401):
         raise ValueError('Expired or invalid setup package.')
     return payload

@@ -2,10 +2,15 @@
 import getpass
 import json
 import sys
+import time
 import httpx
 from airlock_contracts.setup import parse_code, proof, decrypt, MAX_SETUP
 from .exchange import Invitation, validate_endpoint
 from .google import GoogleCalendar, Keychain
+
+
+class SetupExpired(ValueError):
+    pass
 
 
 class SetupKeys(Keychain):
@@ -77,6 +82,9 @@ def apply(settings, payload, *, google=None, transport=None):
             finally:
                 engine.dispose()
         else:
+            if (payload.get('version') != 2 or type(payload.get('expires_at')) is not int
+                    or not time.time() < payload['expires_at'] <= time.time() + 86401):
+                raise SetupExpired('Pending setup expired. Run .venv/bin/airlock setup-cancel, then request a fresh code.')
             google.provision(payload['google_client'])
             response = client.post('/api/exchange/pair', json={'invitation':invite.model_dump(mode='json')})
             if response.status_code != 200:
@@ -101,6 +109,26 @@ def interactive(settings):
             vault.set(settings.origin, payload)
         apply(settings, payload)
         vault.delete(settings.origin)
+    except SetupExpired as exc:
+        raise SystemExit(str(exc)) from None
     except (Exception, KeyboardInterrupt):
         raise SystemExit('Setup did not finish. Check network/Keychain, then run .venv/bin/airlock setup again. If the code was consumed before it could be stored, request a new code. No sharing was enabled.') from None
     print('Google app configured and connector paired. Sharing remains unchanged (paused/off on a fresh workspace). Sign into Google locally, then review Sharing before enabling it.')
+
+
+
+def cancel_pending(settings, *, vault=None, transport=None):
+    vault = vault or SetupKeys()
+    payload = vault.get(settings.origin)
+    if not payload:
+        return 'No pending setup is stored on this Mac.'
+    invite = validate_payload(payload, payload['endpoint'])
+    with httpx.Client(timeout=20, trust_env=False, follow_redirects=False, transport=transport) as client:
+        response = client.post(invite.endpoint+'/v1/setup/cancel',json={},
+                               headers={'Authorization':'Bearer '+invite.code})
+    if response.status_code not in (200, 409, 410):
+        raise ValueError('Cancellation could not be confirmed. Pending setup was retained; retry when online.')
+    vault.delete(settings.origin)
+    if response.status_code == 409:
+        return 'Pending setup cleared. The connector is already paired; existing pairing and sharing were not changed. Use Sharing or operator revocation to disconnect.'
+    return 'Pending setup cancelled and cleared. Existing Google registration, accounts, and local data were preserved. Request a fresh setup code when ready.'

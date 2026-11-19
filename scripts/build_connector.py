@@ -10,4 +10,5 @@ with tempfile.TemporaryDirectory(prefix='airlock-connector-build-') as tmp:
     shutil.copy(root/'connector/pyproject.toml',stage/'pyproject.toml')
     for package in ('airlock_connector','airlock_contracts'):
         shutil.copytree(root/'src'/package,stage/'src'/package,ignore=shutil.ignore_patterns('__pycache__'))
-    subprocess.run([sys.executable,'-m','pip','wheel','--no-deps','--wheel-dir',str(root/'dist'),str(stage)],check=True)
+    subprocess.run([sys.executable,'-m','pip','--isolated','install','--require-hashes','--only-binary=:all:','-r',str(root/'connector/requirements.lock')],check=True)
+    subprocess.run([sys.executable,'-m','pip','wheel','--no-build-isolation','--no-deps','--wheel-dir',str(root/'dist'),str(stage)],check=True)

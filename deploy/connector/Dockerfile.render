@@ -3,10 +3,10 @@ FROM ${PYTHON_IMAGE}
 ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1
 WORKDIR /build
 COPY connector/pyproject.toml ./pyproject.toml
-COPY requirements.lock ./constraints.txt
+COPY connector/requirements.lock ./requirements.lock
 COPY src/airlock_contracts ./src/airlock_contracts
 COPY src/airlock_connector ./src/airlock_connector
-RUN pip install --no-cache-dir -c constraints.txt . && useradd --uid 10001 --create-home connector && mkdir /data && chown connector:connector /data
+RUN python -m pip --isolated install --no-cache-dir --require-hashes --only-binary=:all: -r requirements.lock && python -m pip --isolated install --no-deps --no-build-isolation . && python -m pip check && useradd --uid 10001 --create-home connector && mkdir /data && chown connector:connector /data
 USER 10001:10001
 WORKDIR /data
 EXPOSE 10000

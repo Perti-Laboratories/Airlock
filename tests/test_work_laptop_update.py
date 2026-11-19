@@ -23,8 +23,14 @@ def checkout(tmp_path):
     return work
 
 
+def trusted_updater(work):
+    updater=script('update_work_laptop')
+    updater.EXPECTED_REMOTE=str(work.parent/'remote')
+    return updater
+
+
 def test_check_does_not_update_sources_or_local_configuration(tmp_path):
-    work=checkout(tmp_path); updater=script('update_work_laptop')
+    work=checkout(tmp_path); updater=trusted_updater(work)
     updater.update(work,tmp_path/'absent.plist',tmp_path/'backups',check=True)
     assert not (work/'next.txt').exists()
     assert (work/'.env').read_text()=='PRIVATE_LOCAL_ENV'
@@ -33,7 +39,7 @@ def test_check_does_not_update_sources_or_local_configuration(tmp_path):
 
 @pytest.mark.parametrize('problem',['dirty','diverged','other_login'])
 def test_update_refuses_unsafe_checkout_before_stopping_services(tmp_path,problem):
-    work=checkout(tmp_path); updater=script('update_work_laptop'); plist=tmp_path/'login.plist'
+    work=checkout(tmp_path); updater=trusted_updater(work); plist=tmp_path/'login.plist'
     if problem=='dirty': (work/'README.md').write_text('uncommitted')
     if problem=='diverged':
         (work/'local.txt').write_text('local source change')
@@ -46,7 +52,7 @@ def test_update_refuses_unsafe_checkout_before_stopping_services(tmp_path,proble
 
 
 def test_backup_failure_cannot_advance_release_or_start_app(tmp_path,monkeypatch):
-    work=checkout(tmp_path); updater=script('update_work_laptop'); real=updater.run; calls=[]
+    work=checkout(tmp_path); updater=trusted_updater(work); real=updater.run; calls=[]
     def run(args,root,**kw):
         if args[0]=='git':return real(args,root,**kw)
         calls.append(args)
@@ -58,7 +64,7 @@ def test_backup_failure_cannot_advance_release_or_start_app(tmp_path,monkeypatch
 
 
 def test_failed_migration_keeps_new_code_and_backup_without_automatic_restore(tmp_path,monkeypatch):
-    work=checkout(tmp_path); updater=script('update_work_laptop'); real=updater.run; calls=[]
+    work=checkout(tmp_path); updater=trusted_updater(work); real=updater.run; calls=[]
     def run(args,root,**kw):
         if args[0]=='git':return real(args,root,**kw)
         calls.append(args)
@@ -82,7 +88,7 @@ def test_google_install_option_accepts_only_desktop_config(tmp_path):
 
 
 def test_success_backs_up_old_revision_then_restores_login_after_health_check(tmp_path,monkeypatch):
-    work=checkout(tmp_path); updater=script('update_work_laptop'); real=updater.run; calls=[]
+    work=checkout(tmp_path); updater=trusted_updater(work); real=updater.run; calls=[]
     plist=tmp_path/'login.plist'
     plist.write_bytes(plistlib.dumps({'WorkingDirectory':str(work)}))
     def run(args,root,**kw):
@@ -96,4 +102,18 @@ def test_success_backs_up_old_revision_then_restores_login_after_health_check(tm
     updater.update(work,plist,tmp_path/'backups')
     actions=[c[2] if c[1]=='scripts/pilot.py' else c[1] for c in calls]
     assert actions==['login-remove','scripts/stop.sh','backup','scripts/setup.sh','scripts/start.sh','check','login-install']
+    assert (work/'.env').read_text()=='PRIVATE_LOCAL_ENV'
+
+
+@pytest.mark.parametrize('change',['foreign','multiple','rewrite'])
+def test_origin_verification_rejects_before_fetch_or_backup(tmp_path,monkeypatch,change):
+    work=checkout(tmp_path);updater=trusted_updater(work)
+    if change=='foreign':subprocess.run(['git','remote','set-url','origin','https://example.invalid/other.git'],cwd=work,check=True)
+    if change=='multiple':subprocess.run(['git','config','--add','remote.origin.url','https://example.invalid/other.git'],cwd=work,check=True)
+    if change=='rewrite':subprocess.run(['git','config','url.https://example.invalid/.insteadOf',str(work.parent/'remote')],cwd=work,check=True)
+    real=updater.run;calls=[]
+    def run(args,root,**kwargs):calls.append(args);return real(args,root,**kwargs)
+    monkeypatch.setattr(updater,'run',run)
+    with pytest.raises(SystemExit,match='official Airlock'):updater.update(work,tmp_path/'absent',tmp_path/'backups')
+    assert not any('fetch' in args or 'backup' in args for args in calls)
     assert (work/'.env').read_text()=='PRIVATE_LOCAL_ENV'

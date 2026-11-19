@@ -96,7 +96,12 @@ not device attestation. Reissue after interrupted delivery requires operator act
 
 The installer uses a hidden interactive prompt, validates the embedded destination, rejects redirects,
 disables ambient proxies, bounds responses and verifies authenticated encryption before applying data.
-A retrieved but incomplete setup is retained in macOS Keychain for retry. Existing OAuth registrations
+A retrieved but incomplete setup is retained in macOS Keychain for retry before its deadline.
+Both the client and server enforce expiry at first binding. Each v2 grant has a distinct pairing secret;
+replacement invalidates the old secret and legacy configuration invitations cannot bypass the grant.
+An already bound identical device key can recover its receipt after expiry without changing identity.
+Pending cancellation requires that invitation secret and server confirmation; it cannot revoke a
+bound node. Consumed, cancelled and retired grants cannot be revived by reinstalling them. Existing OAuth registrations
 and connector identities cannot be silently replaced. Enrollment never grants release permission and
 never bypasses Google consent or workspace OAuth policies.
 
@@ -104,3 +109,15 @@ Keep-awake is default-off and requests only macOS's AC-only `caffeinate -s` asse
 Airlock process lifetime. It does not alter screen lock, display sleep, login policy or persistent
 system power preferences, and does not enable syncing during actual sleep. Workspace restore resets
 this preference to off. Physical battery, lid-close and lock-screen checks remain installation tests.
+
+## Release integrity
+
+The pilot targets Python 3.13. Committed dependency locks include SHA-256 wheel hashes and build
+tools; installs reject mismatched hashes, source distributions and unlisted dependencies. Local
+packages build from the checkout without downloading isolated build dependencies. The database
+and hosted Python base images are pinned to manifest digests. The updater verifies the exact official
+HTTPS Git origin, rejects URL rewrites and fetch redirects, and backs up before changing the checkout.
+These checks do not protect against compromise of the trusted repository or replace signed releases.
+Maintainers refresh locks with `scripts/lock_dependencies.py`, which checks the dependency closure
+and rejects versions with advisories listed by PyPI. This is a point-in-time check, not a guarantee
+against undiscovered vulnerabilities.

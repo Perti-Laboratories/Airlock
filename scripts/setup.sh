@@ -12,7 +12,7 @@ command -v ollama >/dev/null || { echo 'Install Ollama first.'; exit 1; }
 from pathlib import Path
 import secrets, sys, os, json
 from zoneinfo import ZoneInfo
-if sys.version_info < (3, 11): raise SystemExit('Python 3.11 or newer is required.')
+if sys.version_info[:2] != (3, 13): raise SystemExit('Python 3.13 is required for this tested pilot.')
 p=Path('.env')
 if not p.exists():
     password=secrets.token_hex(24)
@@ -29,7 +29,9 @@ Path('data').mkdir(exist_ok=True, mode=0o700)
 PY
 [ -d .venv ] || "$PYTHON_BIN" -m venv .venv
 .venv/bin/python scripts/vendor_core.py
-.venv/bin/pip install -r requirements.lock ./vendor/airlock_core '.[dev]'
+.venv/bin/python -m pip --isolated install --require-hashes --only-binary=:all: -r requirements.lock
+.venv/bin/python -m pip --isolated install --no-deps --no-build-isolation ./vendor/airlock_core '.[dev]'
+.venv/bin/python -m pip check
 docker compose up -d --wait
 .venv/bin/alembic upgrade head
 .venv/bin/airlock init
