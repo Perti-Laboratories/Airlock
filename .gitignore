@@ -31,3 +31,7 @@ src/airlock/google_desktop_client.json
 # Pairing and harness credentials are local-only.
 invitation.json
 harness.json
+
+# Private setup enrollment material.
+setup-code.txt
+envelope.json

@@ -83,3 +83,13 @@ def test_first_install_refuses_preexisting_database_volume(monkeypatch, tmp_path
     with pytest.raises(SystemExit, match='database volume already exists'):
         install.preflight(tmp_path, 'America/New_York')
     assert not list(tmp_path.iterdir())
+
+
+@pytest.mark.parametrize('filename', ['setup-code.txt', 'envelope.json'])
+def test_archive_rejects_tracked_setup_secrets(tmp_path, filename):
+    checkout=tmp_path/'checkout';repo(checkout)
+    (checkout/filename).write_text('SYNTHETIC_SETUP_SENTINEL')
+    subprocess.run(['git','add',filename],cwd=checkout,check=True)
+    subprocess.run(['git','-c','user.name=Test','-c','user.email=test@example.invalid','commit','-qm','fixture'],cwd=checkout,check=True)
+    with pytest.raises(ValueError,match='cannot be distributed'):
+        script('package_work_laptop').build(checkout,tmp_path/'output')
