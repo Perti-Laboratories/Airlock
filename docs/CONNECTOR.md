@@ -28,7 +28,8 @@ From an Airlock checkout with its development environment installed:
 ```sh
 .venv/bin/python scripts/build_connector.py
 .venv/bin/python -m venv data/connector-runtime
-data/connector-runtime/bin/pip install -c requirements.lock dist/airlock_connector-0.3.0-py3-none-any.whl
+data/connector-runtime/bin/pip --isolated install --require-hashes --only-binary=:all: -r connector/requirements.lock
+data/connector-runtime/bin/pip install --no-deps dist/airlock_connector-0.9.0-py3-none-any.whl
 .venv/bin/python scripts/connector_local.py start
 ```
 
@@ -189,16 +190,27 @@ An operator can prepare an encrypted Google Desktop registration plus fresh node
 The new private directory contains `setup-code.txt` (deliver only through a trusted private channel)
 and `envelope.json` (ciphertext and redemption verifier, no decryption key). The hosted connector
 accepts the latter JSON through its operator-managed `AIRLOCK_SETUP_ENVELOPE` environment setting.
-Deploy connector 0.8 or later and restart it to install the envelope on its persistent disk.
+Deploy connector 0.9 or later with a newly issued v2 envelope to install it on persistent disk.
+When upgrading from 0.8, replace an unpaired connector’s old environment envelope before deployment;
+for an already paired connector remove the old environment envelope, preserving its persistent disk.
 The connector must be fresh and unpaired. Never put the code, plaintext registration, invitation or
 envelope in Git. A different envelope replaces the active grant; reloading the same envelope never
-resets consumption. The maximum lifetime is 24 hours from generation, not from deployment.
+resets consumption or cancellation. Retired envelope IDs cannot be reinstalled. Each new envelope
+contains a new invitation secret and replaces any previous pending pairing authority. The maximum
+lifetime is 24 hours from generation, not from deployment, and is enforced at initial pairing too.
 For a local host, call `airlock_connector.enrollment.install(path, envelope, store)` as the operator.
 There is no remote enrollment-creation endpoint. Remove the host environment setting when enrollment
 is complete; the consumed row remains a replay tombstone. Regular exchange credentials and endpoints
-are unchanged. Older clients can continue importing invitation files.
+are unchanged. Legacy invitation files work only on connectors without setup enrollment. Once a
+setup grant exists, its new invitation is required; the original configuration invitation cannot bypass
+its expiry or cancellation. Existing bound identities retain same-key receipt recovery.
 
 The Mac uses `python3.13 scripts/work_laptop.py --setup-code` during fresh installation, or
 `.venv/bin/airlock setup` afterward. It signs into Google locally and leaves exchange disabled and
 sharing paused. A consumed-but-undelivered package needs operator reissue; a successfully retrieved
 package survives later pairing failures in local Keychain for retry.
+
+Cancel pending setup with `.venv/bin/airlock setup-cancel`. The client authenticates the cancellation
+with the decrypted invitation secret, confirms the server result, then deletes only its pending
+Keychain entry. Network failures retain it for retry. This endpoint cannot create grants, delete
+workspace data or revoke an already paired identity.

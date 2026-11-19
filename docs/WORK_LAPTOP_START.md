@@ -32,10 +32,16 @@ before retrieval. Paste the code only there, never into the command line or a pu
 It downloads an encrypted package over HTTPS, configures the Google Desktop registration in
 Keychain and pairs this fresh workspace. No Downloads files are needed. It does not import account
 tokens or personal workspace data, and does not enable sharing. You still sign into Google locally.
-A code is a bearer secret: anyone holding it can redeem it first. Ask for a new code if it expires.
+A code is a bearer secret: anyone holding it can redeem it first. Its deadline also applies to initial
+pairing, including a configuration already downloaded into Keychain. Ask for a new code if it expires.
+This release uses v2 codes; older codes must be reissued.
 
 If retrieval succeeded but pairing was interrupted, the pending configuration stays in Keychain.
-Retry from this same installation with `.venv/bin/airlock setup`; do not reinstall or delete data.
+Retry before the deadline from this same installation with `.venv/bin/airlock setup`; do not reinstall
+or delete data. To abandon pending setup, run `.venv/bin/airlock setup-cancel`. It confirms cancellation
+with the connector before removing the pending Keychain entry. If offline, retry when online.
+Cancellation does not delete Google settings, local data or an already established pairing; revoke an
+established connection separately. After expiry, cancel pending setup and obtain a fresh code.
 If the network failed after server consumption but before local storage, ask the operator to issue
 a replacement. The server cannot return a consumed package a second time.
 
@@ -109,10 +115,14 @@ python3.13 scripts/update_work_laptop.py
 ```
 
 Do not pull new code before invoking the updater: it backs up the installed version before changing
-the checkout. It refuses dirty or divergent source history, pins the fetched commit, removes this
+the checkout. It requires the exact official HTTPS origin shown in the clone command, rejects Git URL
+rewrites and HTTP redirects, refuses dirty or divergent source history, pins the fetched commit, removes this
 installation's login supervision, stops its app/model processes, backs up the database to
 `data/backups`, installs dependencies and migrations, and checks readiness before restoring login
 startup. `.env`, Google Keychain entries, source selection and pairing counters are preserved.
+Python dependencies install only from wheels matching the committed SHA-256 hashes, with locked
+build tools and no additional build dependency downloads. The database image is pinned to a manifest
+digest. These are integrity checks, not a publisher signature.
 Use `--backup-dir /approved/encrypted/location` to choose another backup parent directory.
 
 If an update fails, leave the workspace and backup in place. The updater does not roll code back

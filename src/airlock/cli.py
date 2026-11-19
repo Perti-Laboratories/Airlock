@@ -23,13 +23,19 @@ def initialize(settings):
 
 def main():
     parser = argparse.ArgumentParser(description="Airlock local assistant")
-    parser.add_argument("command", choices=["init", "serve", "google-configure", "google-provision", "setup"])
+    parser.add_argument("command", choices=["init", "serve", "google-configure", "google-provision", "setup", "setup-cancel"])
     parser.add_argument("client_file", nargs="?")
     args = parser.parse_args()
     settings = Settings()
     if args.command == "init":
         initialize(settings)
         print("Initialized the isolated Airlock workspace.")
+    elif args.command == "setup-cancel":
+        from .setup_code import cancel_pending
+        try:
+            print(cancel_pending(settings))
+        except Exception:
+            raise SystemExit("Could not confirm cancellation. Pending setup was retained. Retry when the connector and Keychain are available.") from None
     elif args.command == "setup":
         from .setup_code import interactive
         interactive(settings)

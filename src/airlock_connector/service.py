@@ -128,8 +128,6 @@ def create_connector(config, path):
     @app.post('/v1/pair')
     def pair(body: Pair):
         import base64
-        if not hmac.compare_digest(body.code, config['pairing_code']):
-            raise HTTPException(401, 'Invalid invitation.')
         try:
             if len(base64.b64decode(body.public_key, validate=True)) != 32:
                 raise ValueError()
@@ -137,6 +135,8 @@ def create_connector(config, path):
             raise HTTPException(422, 'Invalid public key.') from None
         with store(path) as db:
             row = db.execute('SELECT * FROM state WHERE id=1').fetchone()
+            from .enrollment import authorize_pair
+            authorize_pair(db, row, body.code, body.public_key, config['pairing_code'])
             if row['revoked'] or row['public_key'] not in {None,body.public_key}:
                 raise HTTPException(409, 'Invitation already bound.')
             db.execute('UPDATE state SET public_key=? WHERE id=1', (body.public_key,))

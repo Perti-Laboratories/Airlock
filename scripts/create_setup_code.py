@@ -29,4 +29,8 @@ def main():
     print('Private setup code and encrypted host envelope created. Install the envelope on the connector, then deliver the code through a trusted private channel. Neither file belongs in Git.')
 
 
-if __name__=='__main__': main()
+if __name__=='__main__':
+    try:
+        main()
+    except Exception:
+        raise SystemExit('Could not create setup package. Check the supplied files and choose a new private output directory. Configuration contents were not printed.') from None

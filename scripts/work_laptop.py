@@ -30,8 +30,8 @@ def google_client_path(value):
 
 
 def preflight(root, timezone):
-    if sys.platform != 'darwin' or sys.version_info < (3, 11):
-        raise SystemExit('Use macOS with Python 3.11 or newer (3.13 is tested).')
+    if sys.platform != 'darwin' or sys.version_info[:2] != (3, 13):
+        raise SystemExit('Use macOS with Python 3.13 for this tested pilot.')
     try:
         ZoneInfo(timezone)
     except ZoneInfoNotFoundError:
@@ -68,6 +68,9 @@ def main():
     args = parser.parse_args()
     if args.setup_code and args.google_client:
         parser.error('Use either --setup-code or --google-client, not both.')
+    if (ROOT / '.git').exists():
+        from update_work_laptop import verify_origin
+        verify_origin(ROOT)
     preflight(ROOT, args.timezone)
     if args.check:
         print('Fresh-install checks passed. No settings changed.');return

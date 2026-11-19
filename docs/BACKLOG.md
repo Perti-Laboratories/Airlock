@@ -13,7 +13,9 @@ context projections, with titles optional and private details excluded. Outbound
 
 Setup-code enrollment now retrieves an encrypted, expiring Google registration and fresh connector
 invitation without file transfer, leaving sharing paused. General settings include default-off
-AC-only keep-awake without screen-lock changes.
+AC-only keep-awake without screen-lock changes. Local 0.11 / connector 0.9 harden enrollment
+expiry and cancellation, patch dependency advisories, verify package hashes, pin the database image
+and require the official HTTPS update origin (issue #21).
 
 Next work:
 

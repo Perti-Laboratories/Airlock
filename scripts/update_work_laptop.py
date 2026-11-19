@@ -8,6 +8,7 @@ import subprocess
 import sys
 
 ROOT = Path(__file__).resolve().parents[1]
+EXPECTED_REMOTE = 'https://github.com/Perti-Laboratories/Airlock.git'
 
 
 def run(args, root, **kwargs):
@@ -19,6 +20,16 @@ def run(args, root, **kwargs):
 
 def git(root, *args):
     return run(['git', *args], root, capture_output=True, text=True).stdout.strip()
+
+
+def verify_origin(root):
+    try:
+        configured = git(root, 'config', '--get-all', 'remote.origin.url').splitlines()
+        resolved = git(root, 'remote', 'get-url', '--all', 'origin').splitlines()
+    except subprocess.CalledProcessError:
+        raise SystemExit('Cannot verify the release repository; no update was attempted.') from None
+    if configured != [EXPECTED_REMOTE] or resolved != [EXPECTED_REMOTE]:
+        raise SystemExit('Origin must be the official Airlock HTTPS repository, without URL rewrites or extra origins. No update was attempted.')
 
 
 def plan(root, plist):
@@ -33,7 +44,8 @@ def plan(root, plist):
         config = plistlib.loads(plist.read_bytes())
         if config.get('WorkingDirectory') != str(root):
             raise SystemExit('Login startup belongs to another installation; refusing to change it.')
-    git(root, 'fetch', 'origin', 'refs/heads/work-pilot:refs/remotes/origin/work-pilot')
+    verify_origin(root)
+    git(root, '-c', 'http.followRedirects=false', 'fetch', 'origin', 'refs/heads/work-pilot:refs/remotes/origin/work-pilot')
     previous, target = git(root, 'rev-parse', 'HEAD'), git(root, 'rev-parse', 'origin/work-pilot')
     try:
         git(root, 'merge-base', '--is-ancestor', previous, target)

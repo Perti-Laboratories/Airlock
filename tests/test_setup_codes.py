@@ -70,7 +70,7 @@ def test_client_tampering_origin_and_transport_limits(enrollment):
         assert request.url.path=='/v1/setup/redeem' and not request.url.query
         assert request.headers['authorization'].startswith('Bearer ')
         return httpx.Response(200,json={'ciphertext':envelope['ciphertext']})
-    assert retrieve(code,transport=httpx.MockTransport(handler))['version']==1
+    assert retrieve(code,transport=httpx.MockTransport(handler))['version']==2
     endpoint,secret=parse_code(code)
     with pytest.raises(Exception):decrypt(b'x'*32,envelope['ciphertext'],endpoint)
     with pytest.raises(ValueError):decrypt(secret,envelope['ciphertext'],'https://other.example.test')
@@ -123,3 +123,90 @@ def test_setup_applies_through_local_session_and_retries_same_identity(workspace
     google.vault.set('client',{'client_id':'other.apps.googleusercontent.com','client_secret':'other'})
     with pytest.raises(ValueError,match='another Google'):
         apply(settings,payload,google=google,transport=httpx.MockTransport(local))
+
+
+def unpack(code,envelope):
+    endpoint,secret=parse_code(code)
+    return decrypt(secret,envelope['ciphertext'],endpoint)
+
+
+def test_server_pairing_deadline_and_same_key_receipt_recovery(enrollment):
+    from airlock_contracts import keys
+    client,code,envelope,path,config=enrollment
+    payload=unpack(code,envelope)
+    _, public=keys()
+    body={'code':payload['invitation']['code'],'public_key':public}
+    assert body['code']!=config['pairing_code']
+    assert client.post('/v1/pair',json={**body,'code':config['pairing_code']}).status_code==401
+    with store(path) as db:db.execute('UPDATE setup_envelope SET expires_at=0')
+    assert client.post('/v1/pair',json=body).status_code==401
+    with store(path) as db:db.execute('UPDATE setup_envelope SET expires_at=?',(time.time()+60,))
+    assert client.post('/v1/pair',json=body).status_code==200
+    with store(path) as db:db.execute('UPDATE setup_envelope SET expires_at=0')
+    assert client.post('/v1/pair',json=body).status_code==200
+    _, other=keys()
+    assert client.post('/v1/pair',json={**body,'public_key':other}).status_code==409
+    assert client.post('/v1/setup/cancel',json={},headers={'Authorization':'Bearer '+body['code']}).status_code==409
+
+
+def test_cancel_blocks_pairing_and_survives_restart(enrollment):
+    from airlock_contracts import keys
+    client,code,envelope,path,config=enrollment
+    invite=unpack(code,envelope)['invitation']
+    assert redeem(client,code).status_code==200
+    headers={'Authorization':'Bearer '+invite['code']}
+    assert client.post('/v1/setup/cancel',json={},headers={'Authorization':'Bearer '+config['harness_token']}).status_code in (401,410)
+    assert client.post('/v1/setup/cancel',json={},headers=headers).status_code==200
+    assert client.post('/v1/setup/cancel',json={},headers=headers).status_code==200
+    install(path,envelope,store)
+    _, public=keys()
+    assert client.post('/v1/pair',json={'code':invite['code'],'public_key':public}).status_code==401
+    assert redeem(client,code).status_code==401
+
+
+def test_reissue_invalidates_old_invitation_and_old_envelope_cannot_revive(enrollment):
+    from airlock_contracts import keys
+    client,code,envelope,path,config=enrollment
+    old=unpack(code,envelope)
+    new_code,new=prepare(old['endpoint'],old['google_client'],old['invitation'])
+    install(path,new,store)
+    _, public=keys()
+    assert client.post('/v1/pair',json={'code':old['invitation']['code'],'public_key':public}).status_code==401
+    assert redeem(client,code).status_code==401
+    with pytest.raises(ValueError,match='Retired'):install(path,envelope,store)
+    assert redeem(client,new_code).status_code==200
+    invite=unpack(new_code,new)['invitation']
+    assert client.post('/v1/pair',json={'code':invite['code'],'public_key':public}).status_code==200
+
+
+def test_expired_local_package_cannot_configure_google_or_start_pairing(workspace,enrollment):
+    from airlock.setup_code import apply,SetupExpired
+    from airlock.google import GoogleCalendar
+    from test_calendar_workspace import Vault
+    client,_,_,settings=workspace
+    _,code,envelope,_,_=enrollment
+    payload=unpack(code,envelope);payload['expires_at']=0
+    google=GoogleCalendar(settings,vault=Vault())
+    def local(request):
+        r=client.request(request.method,request.url.path,headers=dict(request.headers),content=request.content)
+        return httpx.Response(r.status_code,headers=r.headers,content=r.content)
+    with pytest.raises(SetupExpired):apply(settings,payload,google=google,transport=httpx.MockTransport(local))
+    assert not google.status()['configured']
+    assert not client.get('/api/exchange').json()['paired']
+
+
+def test_local_cancel_preserves_data_and_requires_remote_confirmation(enrollment):
+    from types import SimpleNamespace
+    from test_calendar_workspace import Vault
+    from airlock.setup_code import cancel_pending
+    remote,code,envelope,_,_=enrollment
+    payload=unpack(code,envelope);vault=Vault();settings=SimpleNamespace(origin='http://127.0.0.1:8741')
+    vault.set(settings.origin,payload);vault.set('unrelated',{'keep':True})
+    with pytest.raises(ValueError):cancel_pending(settings,vault=vault,transport=httpx.MockTransport(lambda _:httpx.Response(503)))
+    assert vault.get(settings.origin)
+    def handler(request):
+        r=remote.request(request.method,request.url.path,headers=dict(request.headers),content=request.content)
+        return httpx.Response(r.status_code,content=r.content)
+    assert 'cancelled' in cancel_pending(settings,vault=vault,transport=httpx.MockTransport(handler))
+    assert vault.get(settings.origin) is None and vault.get('unrelated')=={'keep':True}
+    assert 'No pending' in cancel_pending(settings,vault=vault)
