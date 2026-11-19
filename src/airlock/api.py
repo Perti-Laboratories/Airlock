@@ -47,11 +47,15 @@ def create_app(settings=None, *, llm=None, sessions=None, google=None):
     from .progress import TurnProgress
     chat_progress = TurnProgress()
     worker = LocalWorker(sessions,llm,google,lock,release_lock)
+    from .power import PowerManager
+    power = PowerManager(sessions)
     @asynccontextmanager
     async def lifespan(app):
+        power.start()
         if settings.workers_enabled: worker.start()
         try: yield
         finally:
+            power.stop()
             if settings.workers_enabled: worker.stop()
     app = FastAPI(title="Airlock", docs_url=None, redoc_url=None, openapi_url=None, lifespan=lifespan)
     app.state.settings, app.state.sessions, app.state.llm = settings, sessions, llm
@@ -323,6 +327,28 @@ def create_app(settings=None, *, llm=None, sessions=None, google=None):
             return [{"id": str(t.id), "tool": t.tool_name, "status": t.status, "created_at": t.created_at.isoformat()} for t in rows]
 
     from .workspace_api import attach_workspace_routes
+    from .schemas import StrictModel
+    class PowerOptions(StrictModel):
+        enabled: bool
+
+    @app.get('/api/power')
+    def power_status():
+        return power.status()
+
+    @app.put('/api/power')
+    def power_options(body: PowerOptions):
+        if body.enabled and not power.supported:
+            raise HTTPException(409, 'Plugged-in keep-awake requires macOS.')
+        with writer() as db:
+            def save():
+                db.get(LocalState, 1).keep_syncing_plugged_in = body.enabled
+            audited(db, 'power.preference', body.model_dump(), save)
+            r = report(db, 'Plugged-in sync preference saved.', operation='power_preference', changes=[], source_refs=[])
+            ident = str(r.id)
+            db.commit()
+        power.refresh()
+        return {'report_id':ident, **power.status()}
+
     attach_workspace_routes(app,sessions,writer,google,lock,settings)
     from .release_api import attach_release_routes
     attach_release_routes(app, sessions, release_writer)

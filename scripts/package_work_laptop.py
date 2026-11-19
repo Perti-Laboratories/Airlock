@@ -24,7 +24,7 @@ def build(root, output):
             if any(p in {'data', '.env', '.venv', '.git', 'logs', 'models', 'artifacts', '__pycache__'} for p in parts):
                 raise ValueError('Runtime state must never be tracked in a distributable build.')
             name = Path(member.name).name
-            if (name in {'google_desktop_client.json', 'invitation.json', 'harness.json'}
+            if (name in {'google_desktop_client.json', 'invitation.json', 'harness.json', 'setup-code.txt', 'envelope.json'}
                     or name.startswith(('client_secret', 'credentials'))
                     or (name.startswith('.env.') and name != '.env.example')
                     or name.endswith(('.pem', '.key', '.db', '.sqlite', '.log'))):

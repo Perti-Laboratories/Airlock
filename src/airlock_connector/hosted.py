@@ -54,7 +54,13 @@ def hosted_app(directory):
     if config_path.exists() != database.exists():
         raise RuntimeError('Incomplete connector state; operator recovery required.')
     if config_path.exists():
-        return create_connector(json.loads(config_path.read_text()), database)
+        app = create_connector(json.loads(config_path.read_text()), database)
+        envelope = os.environ.get('AIRLOCK_SETUP_ENVELOPE')
+        if envelope:
+            from .enrollment import install
+            from .service import store
+            install(database, json.loads(envelope), store)
+        return app
     # A newly mounted empty disk exposes no pairing, harness, or initialization API.
     app = FastAPI(docs_url=None, redoc_url=None, openapi_url=None)
 

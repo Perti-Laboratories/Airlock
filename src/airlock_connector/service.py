@@ -296,6 +296,8 @@ def create_connector(config, path):
             db.execute('UPDATE state SET records_ack=max(records_ack,?) WHERE id=1', (body.revision,))
         return {'status': 'applied'}
 
+    from .enrollment import attach as attach_enrollment
+    attach_enrollment(app, path, store)
     from .board import attach
     attach(app, config, path, store, auth)
     return app

@@ -1,6 +1,7 @@
 'use strict';
 let chatAttachments=[],editingContact=null,pendingRemoval=null;
 async function refreshModels(){
+ await refreshPower();
  const d=await api('/api/models');const select=$('#chat-model-choice');select.replaceChildren();
  for(const m of d.choices){const option=el('option','',m.name);option.value=m.name;select.append(option);}
  select.value=d.model;$('#save-model').disabled=!d.choices.length;
@@ -62,3 +63,14 @@ document.querySelectorAll('[data-settings]').forEach(tab=>{
   if(next!==undefined){event.preventDefault();tabs[next].focus();showSettings(tabs[next].dataset.settings);}
  };
 });
+
+async function refreshPower(){
+ const p=await api('/api/power');
+ $('#keep-syncing').checked=p.enabled;$('#keep-syncing').disabled=!p.supported;
+ $('#power-status').textContent=p.error||(!p.supported?'Available on macOS.':!p.enabled?'Off — normal sleep behavior.':p.active?'Keeping this Mac awake while plugged in.':p.plugged_in===false?'Enabled — normal sleep behavior on battery.':'Enabled — keep-awake is not currently confirmed.');
+}
+$('#keep-syncing').onchange=async()=>{
+ const input=$('#keep-syncing');const enabled=input.checked;input.disabled=true;
+ try{await api('/api/power','PUT',{enabled});}catch(e){banner(e.message);}
+ finally{await refreshPower().catch(e=>{input.disabled=false;banner(e.message);});}
+};

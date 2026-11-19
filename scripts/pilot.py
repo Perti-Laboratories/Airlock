@@ -83,7 +83,7 @@ def main():
         with tempfile.TemporaryFile(mode='w+b') as sql:
             with dump.open('rb') as handle:
                 run(['docker','compose','exec','-T','postgres','pg_restore','--no-owner','--no-privileges','--file=-'],stdin=handle,stdout=sql)
-            sql.write(b'\nUPDATE public.release_policies SET paused=true,revision=revision+1; UPDATE public.exchange_state SET enabled=false,allow_availability=false,inbound=NULL; UPDATE public.calendar_sources SET enabled=false; UPDATE public.company_connection SET enabled=false;\n')
+            sql.write(b'\nUPDATE public.local_state SET keep_syncing_plugged_in=false; UPDATE public.release_policies SET paused=true,revision=revision+1; UPDATE public.exchange_state SET enabled=false,allow_availability=false,inbound=NULL; UPDATE public.calendar_sources SET enabled=false; UPDATE public.company_connection SET enabled=false;\n')
             sql.seek(0)
             # Restore and disable external activity in the SAME transaction. There is
             # no visible interval in which restored credentials/cursors can publish.

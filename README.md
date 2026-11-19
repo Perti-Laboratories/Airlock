@@ -67,18 +67,23 @@ cd ~/Applications
 git clone --branch work-pilot --single-branch https://github.com/Perti-Laboratories/Airlock.git
 cd Airlock
 python3.13 scripts/work_laptop.py --check
-python3.13 scripts/work_laptop.py
+python3.13 scripts/work_laptop.py --setup-code
 ```
 
 Open **http://127.0.0.1:8741**. Setup creates an empty workspace with fresh local secrets,
 downloads the local models, and configures startup after login. Docker must also start at login.
 The app, model service and database bind to loopback. The Python app and Ollama run natively;
-PostgreSQL/pgvector runs in Docker. The computer must be awake to process or sync.
+PostgreSQL/pgvector runs in Docker. The computer must be awake to process or sync. An optional **Keep syncing while plugged in**
+setting prevents automatic AC sleep while Airlock runs; display sleep and screen lock remain intact.
+Lid closure and explicit sleep can still pause processing.
 
 Imported Google events with identical start and end times retain their exact timestamps as
 nonblocking entries. They remain available locally and are excluded from planning releases.
 
-Setup does not connect an account or enable sharing. Google Calendar is optional and read-only;
+With `--setup-code`, paste the privately issued expiring code at the hidden prompt. This retrieves
+the Google registration and connector invitation without manually moving files; pairing remains
+disabled and sharing paused. Omit the option for local-only installation. Setup does not sign into
+an account or enable sharing. Google Calendar is optional and read-only;
 [register/provision your OAuth client](docs/GOOGLE_SETUP.md), then sign in through the browser.
 The source package contains no shared OAuth client, tokens or pairing credentials.
 See [installation and first-run tests](docs/WORK_LAPTOP_START.md).

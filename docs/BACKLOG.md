@@ -11,6 +11,10 @@ Calendar includes day/week/month views with stable source colors and local conte
 Context is soft scheduling guidance, not busy time. Connector 0.7 adds independently opt-in
 context projections, with titles optional and private details excluded. Outbound indicators show policy eligibility, not delivery receipts.
 
+Setup-code enrollment now retrieves an encrypted, expiring Google registration and fresh connector
+invitation without file transfer, leaving sharing paused. General settings include default-off
+AC-only keep-awake without screen-lock changes.
+
 Next work:
 
 - Validate installation, sleep/offline recovery and sustained use on additional physical Macs.
