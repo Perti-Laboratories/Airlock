@@ -177,3 +177,28 @@ or the automated record-exchange tests for the new path.
 
 Connector 0.6.0 adds the optional v3 task board channel. Upgrade both peers for source-confirmed
 column moves. See [the board protocol](EXCHANGE_CONTRACT.md#optional-task-board-protocol--connector-060--local-080).
+
+## Optional single-use workstation setup
+
+An operator can prepare an encrypted Google Desktop registration plus fresh node invitation:
+
+```sh
+.venv/bin/python scripts/create_setup_code.py --google-client /private/desktop-client.json --invitation /private/new-node/invitation.json --output /private/new-setup
+```
+
+The new private directory contains `setup-code.txt` (deliver only through a trusted private channel)
+and `envelope.json` (ciphertext and redemption verifier, no decryption key). The hosted connector
+accepts the latter JSON through its operator-managed `AIRLOCK_SETUP_ENVELOPE` environment setting.
+Deploy connector 0.8 or later and restart it to install the envelope on its persistent disk.
+The connector must be fresh and unpaired. Never put the code, plaintext registration, invitation or
+envelope in Git. A different envelope replaces the active grant; reloading the same envelope never
+resets consumption. The maximum lifetime is 24 hours from generation, not from deployment.
+For a local host, call `airlock_connector.enrollment.install(path, envelope, store)` as the operator.
+There is no remote enrollment-creation endpoint. Remove the host environment setting when enrollment
+is complete; the consumed row remains a replay tombstone. Regular exchange credentials and endpoints
+are unchanged. Older clients can continue importing invitation files.
+
+The Mac uses `python3.13 scripts/work_laptop.py --setup-code` during fresh installation, or
+`.venv/bin/airlock setup` afterward. It signs into Google locally and leaves exchange disabled and
+sharing paused. A consumed-but-undelivered package needs operator reissue; a successfully retrieved
+package survives later pairing failures in local Keychain for retry.

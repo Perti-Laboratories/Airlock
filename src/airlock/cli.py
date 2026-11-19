@@ -23,13 +23,16 @@ def initialize(settings):
 
 def main():
     parser = argparse.ArgumentParser(description="Airlock local assistant")
-    parser.add_argument("command", choices=["init", "serve", "google-configure", "google-provision"])
+    parser.add_argument("command", choices=["init", "serve", "google-configure", "google-provision", "setup"])
     parser.add_argument("client_file", nargs="?")
     args = parser.parse_args()
     settings = Settings()
     if args.command == "init":
         initialize(settings)
         print("Initialized the isolated Airlock workspace.")
+    elif args.command == "setup":
+        from .setup_code import interactive
+        interactive(settings)
     elif args.command == "google-provision":
         from .google import GoogleCalendar, GoogleError
         from .provisioning import provision_google

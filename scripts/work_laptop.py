@@ -1,4 +1,4 @@
-"""First installation on a fresh Mac. No personal state or remote pairing is imported."""
+"""First installation on a fresh Mac, with optional private setup-code enrollment."""
 import argparse
 import json
 import os
@@ -64,7 +64,10 @@ def main():
     parser.add_argument('--timezone', default='America/New_York')
     parser.add_argument('--google-client', type=google_client_path,
                         help='Desktop OAuth JSON to provision into this Mac’s Keychain before sign-in')
+    parser.add_argument('--setup-code', action='store_true', help='Prompt privately for an expiring configuration/pairing code after installation')
     args = parser.parse_args()
+    if args.setup_code and args.google_client:
+        parser.error('Use either --setup-code or --google-client, not both.')
     preflight(ROOT, args.timezone)
     if args.check:
         print('Fresh-install checks passed. No settings changed.');return
@@ -86,8 +89,10 @@ def main():
     run([python, 'scripts/pilot.py', 'check'])
     if not args.no_login:
         run([python, 'scripts/pilot.py', 'login-install'])
+    if args.setup_code:
+        run([str(ROOT / '.venv/bin/airlock'), 'setup'])
     print('\nAirlock is ready: http://127.0.0.1:8741\n'
-          'Sharing starts paused and unpaired. Google and company memory are not connected.\n'
+          'Sharing starts paused. Setup-code enrollment may have paired a connector. Google account sign-in and company memory remain disconnected.\n'
           'Next: follow docs/WORK_LAPTOP_START.md for the local smoke test and Google setup.')
 
 

@@ -142,6 +142,7 @@ class LocalState(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True, default=1)
     context_reset_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
     chat_model: Mapped[str | None] = mapped_column(String(160))
+    keep_syncing_plugged_in: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
 
 
 class KnowledgeSource(DomainRecord, TimestampMixin, Base):

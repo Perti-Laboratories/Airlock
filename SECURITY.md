@@ -81,3 +81,26 @@ projection crosses the planning boundary. Private notes, literal locations, atte
 and source metadata are never included. Context is enforced as nonblocking in storage,
 wire validation and adapters. See `docs/EXCHANGE_CONTRACT.md` for version requirements
 and withdrawal/retention limits.
+
+## Setup codes and power
+
+An operator can issue a single-use setup code with a maximum 24-hour lifetime. The code contains a
+256-bit random key and a connector origin. The host receives only an AES-GCM encrypted package and
+a hash of a separately derived redemption proof. The client sends the proof in an HTTPS Authorization
+header, never a URL; it does not send the decryption key. Atomic redemption removes the ciphertext
+from the active record, rejects expiry/replay, and is disabled for bound or revoked connectors.
+No enrollment-creation API is exposed to a recipient or the public. Host backups may retain encrypted
+copies; compromise of both the package and its code reveals the setup registration and invitation.
+Keep codes private. A stolen code can enroll an attacker's node first. This is secret-based enrollment,
+not device attestation. Reissue after interrupted delivery requires operator action.
+
+The installer uses a hidden interactive prompt, validates the embedded destination, rejects redirects,
+disables ambient proxies, bounds responses and verifies authenticated encryption before applying data.
+A retrieved but incomplete setup is retained in macOS Keychain for retry. Existing OAuth registrations
+and connector identities cannot be silently replaced. Enrollment never grants release permission and
+never bypasses Google consent or workspace OAuth policies.
+
+Keep-awake is default-off and requests only macOS's AC-only `caffeinate -s` assertion, tied to the
+Airlock process lifetime. It does not alter screen lock, display sleep, login policy or persistent
+system power preferences, and does not enable syncing during actual sleep. Workspace restore resets
+this preference to off. Physical battery, lid-close and lock-screen checks remain installation tests.

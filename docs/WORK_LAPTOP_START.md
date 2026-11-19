@@ -16,7 +16,7 @@ The archive includes `AIRLOCK_BUILD.json` with its commit and per-file checksums
 `.sha256` verifies transfer integrity; it is not a publisher signature. Never transfer the personal
 Mac's `.env`, data folder, Keychain, database, logs or existing pairing invitation.
 
-Fresh installation with a separately supplied Google Desktop app configuration:
+Fresh installation with a privately supplied, single-use setup code (valid for up to 24 hours):
 
 ```sh
 mkdir -p ~/Applications
@@ -24,27 +24,43 @@ cd ~/Applications
 git clone --branch work-pilot --single-branch https://github.com/Perti-Laboratories/Airlock.git
 cd Airlock
 python3.13 scripts/work_laptop.py --check
-python3.13 scripts/work_laptop.py --google-client "$HOME/Downloads/airlock-desktop-client.json"
+python3.13 scripts/work_laptop.py --setup-code
 ```
 
-Use the actual location of the supplied JSON. Do not transfer account tokens, `.env`, a database,
-personal pairing or Keychain export. Omit `--google-client` only for local-only setup; Google can be
-provisioned later. The JSON is stored in this Mac's Keychain, not copied into the checkout.
+The installer asks for the code in a hidden terminal prompt and shows the connector destination
+before retrieval. Paste the code only there, never into the command line or a public issue.
+It downloads an encrypted package over HTTPS, configures the Google Desktop registration in
+Keychain and pairs this fresh workspace. No Downloads files are needed. It does not import account
+tokens or personal workspace data, and does not enable sharing. You still sign into Google locally.
+A code is a bearer secret: anyone holding it can redeem it first. Ask for a new code if it expires.
+
+If retrieval succeeded but pairing was interrupted, the pending configuration stays in Keychain.
+Retry from this same installation with `.venv/bin/airlock setup`; do not reinstall or delete data.
+If the network failed after server consumption but before local storage, ask the operator to issue
+a replacement. The server cannot return a consumed package a second time.
+
+Without a code, omit `--setup-code` for local-only installation. A separately supplied Desktop JSON
+can still be provisioned with `--google-client /absolute/path/to/client.json` instead.
 
 The default timezone is America/New_York; use `--timezone Europe/London` (or another IANA name)
 if needed. Add `--no-login` to skip automatic startup. Installation generates fresh local secrets,
 creates a Work workspace, downloads qwen3:8b and nomic-embed-text, checks readiness, and installs
-startup after login. It never enables sharing, pairs a recipient, signs into Google, or installs
-company memory. The optional Google flag only prepares the registration for browser sign-in.
+startup after login. It never enables sharing, signs into Google, or installs company memory. The setup-code option
+pairs only the connector identified in the code; the Google-file option only prepares sign-in.
 It refuses existing local state/volumes and occupied ports rather than reusing them.
 
 Open **http://127.0.0.1:8741**. Keep this folder in place: background startup refers to it.
 You can close Terminal. Airlock restarts after login and retries if Docker is still starting.
-It cannot run while the Mac is actually asleep, and it does not change sleep settings.
+Under **Settings & Activity → General**, optionally enable **Keep syncing while plugged in**.
+This uses an AC-only macOS sleep assertion while Airlock runs, without changing system preferences,
+screen lock or display sleep. It defaults off and is preserved across normal updates. Battery mode
+keeps normal sleep behavior. Leave the lid open and power connected for continuous operation.
+Explicit sleep, closing the lid, shutdown, logout, network loss or organizational power rules can
+still interrupt processing. Airlock catches up after waking; it cannot process while actually asleep.
 
 ## First local test (before real work data)
 
-1. Confirm the workspace is empty and Sharing is paused/unpaired.
+1. Confirm the workspace is empty and Sharing is paused. With a setup code it is paired but the connection is off.
 2. Ask: “Remember that my test notebook is called Juniper.” Acknowledge the reply, then ask its name.
 3. Upload a small synthetic document through **+** and ask a question about it.
 4. Create a synthetic calendar event and a to-do with private notes. Verify both local records.
@@ -56,7 +72,8 @@ It cannot run while the Mac is actually asleep, and it does not change sleep set
 ## Connect Google separately
 
 This source package deliberately contains no Google app configuration or account tokens.
-Provision the chosen Desktop OAuth app registration once using its separately supplied JSON:
+If setup-code enrollment succeeded, skip provisioning and click Connect Google. Otherwise, provision
+the chosen Desktop OAuth app registration once using its separately supplied JSON:
 
 ```sh
 .venv/bin/airlock google-provision /absolute/path/to/desktop-client.json
@@ -74,7 +91,8 @@ Provision a **new work-node connector identity and route it to an existing or ne
 connector pilot holds one pairing per deployment. Give this laptop only its node invitation, and
 keep the separate harness credential with connected planner. This is still an operator setup step.
 
-Import the new invitation in Sharing, check the destination, enable the connection, choose the
+With setup-code enrollment the invitation is already imported. Otherwise import it in Sharing.
+Check the destination, enable the connection, choose the
 calendar/to-do rules, review a synthetic example, then unpause sharing. Verify the approved item
 arrives in the correct connected planner domain and that pausing removes it. Return availability is optional
 and must be explicitly enabled; it never writes to Google. Company memory stays disconnected for
@@ -126,3 +144,11 @@ Backups, reviewed updates, revocation and remaining acceptance gates are in the
 [security model](../SECURITY.md). Before updates, remove login supervision so it cannot restart
 the app during migrations. This package does not transfer personal data or automatically deploy
 a new hosted connector, change Google publication status, or complete the physical work-Mac test.
+
+## Plugged-in acceptance check
+
+Enable the General setting, plug in the Mac and confirm the status says it is keeping the Mac awake.
+Lock the screen normally and leave the lid open. After the next polling interval, confirm the
+connector's last receipt advances. Unplug and confirm Airlock reports normal battery sleep behavior.
+Disable the setting and verify normal sleep resumes. Also test explicit sleep/wake: no sync is
+expected during actual sleep, and data should catch up afterward. Do not change workplace lock rules.
