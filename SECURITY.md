@@ -138,9 +138,34 @@ context. Its source must match the stored user message byte-for-byte and carry d
 this exception never applies to company-restricted turns or assistant-generated text.
 
 Calendar attendee routing uses provider fields, not model-generated identities. It ignores self
-and resource attendees, matches normalized email, preserves existing names/notes and respects
+and resource attendees, uses the same local identity matching as manual/chat additions, preserves existing names/notes and respects
 deleted-contact tombstones. It records invitation provenance; an invitation does not prove attendance
 or authorize creating a meeting interaction. Contacts, candidates and source text never enter the
 external planning protocol. Inferred to-dos/events are not silently executed from source documents;
 chat's existing explicit-action validation remains in force. Disable processing under Settings &
 Activity → General; existing memory and record data remain. This option does not enable sharing.
+
+
+## Chat rendering and contact hygiene (local 0.13)
+
+The Markdown renderer builds text nodes and allowlisted elements. Raw HTML is inert; images and
+embedded media never load. Links allow only HTTP(S)/mailto and open without an opener or referrer.
+Clicking a link still navigates outside the local app. Chat supports basic formatting, not all CommonMark.
+The model transport revalidates the loopback Ollama endpoint per request, ignores HTTP proxy
+environment variables and rejects redirects. There is no hosted-model fallback. “Skip company search”
+only suppresses company-memory retrieval for that turn; it does not control model hosting or sync.
+
+New contacts from the editor, chat and calendar attendee intake use email/phone (including aliases),
+then a unique normalized full name, then a bounded local model comparison of up to eight similar
+candidates. Conflicting known identities are excluded from fuzzy matching. Semantic enrichment
+requires a model score of at least 0.80 and a 0.15 margin over another plausible match. These scores
+are model judgments, not calibrated probabilities. Ambiguous matches or model failures stop creation;
+calendar ingestion records them for review in the action report without blocking other attendees.
+Deleted identities are not resurrected. Matching is bounded to 5,000 contacts and refuses unchecked
+creation beyond that limit. Nicknames with no similarity to the stored name may miss the shortlist.
+
+Enrichment preserves primary fields, stores alternate identifiers as local provenance, appends new
+notes, retains source references, logs the match method and reindexes changed content locally.
+Full notes refuse enrichment rather than truncate history. No contact field enters the external
+planning protocol. Existing duplicates are not bulk merged, and imported review cases currently
+require manually editing the intended contact; a dedicated merge/review screen remains future work.

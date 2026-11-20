@@ -1,2 +1,2 @@
 """Airlock: local chat and memory. No workers start on import."""
-__version__ = "0.12.0"
+__version__ = "0.13.0"

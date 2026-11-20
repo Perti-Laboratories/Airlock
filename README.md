@@ -107,6 +107,16 @@ without replacing your edits. Pause this processing in Settings & Activity → G
 company/connector context stays outside general memory extraction; only your exact original input
 can be indexed separately when a reply uses connector context. None of this enables sharing.
 
+Chat renders basic Markdown, including bold, lists and code. **Skip company search** skips
+only company-memory retrieval for that message; every model and embedding still runs locally.
+It does not pause connector or calendar synchronization. The task board shows connected and hidden
+finished-task counts; enable **Show finished** to see Done and Archive.
+
+Every new contact intake checks existing identities first, then uses local semantic matching for
+similar names. A confident match enriches the existing contact, retaining primary details and
+appending notes. Ambiguous identities require clarification. Calendar imports record unresolved
+matches in Activity action details. This is matching assistance, not guaranteed identity resolution.
+
 ## Optional company knowledge prototype
 
 A separate, opt-in company-memory connection can contribute reviewed memory candidates and retrieve

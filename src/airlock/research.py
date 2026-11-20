@@ -39,7 +39,7 @@ No answer, explanation, copied message text, tool commands, or private details b
 def run(db, llm, message, *, local_only=False, step, restrict):
     c=db.get(CompanyConnection,DOMAIN)
     if local_only or not c or not c.enabled or not c.automatic_research:
-        reason='Local only for this message.' if local_only else 'Automatic company research is off or not connected.'
+        reason='Company search skipped for this message; inference remains local.' if local_only else 'Automatic company research is off or not connected.'
         step('company','Company research','skipped',reason)
         return {'results':[], 'status':'skipped'}
     stage='company_topics'

@@ -13,6 +13,11 @@ class LocalOllama(OllamaLLMClient):
         self.embedding_model = settings.embedding_model
 
     def _request(self, path, payload=None):
+        from .config import Settings
+        try:
+            Settings.local_ollama(self.base_url)
+        except ValueError as exc:
+            raise LLMClientError('Model access requires the local Ollama endpoint. No request was sent.') from exc
         url = urlsplit(self.base_url)
         conn = http.client.HTTPConnection(url.hostname, url.port, timeout=self.timeout_seconds)
         try:

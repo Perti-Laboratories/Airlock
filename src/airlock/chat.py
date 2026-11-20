@@ -448,7 +448,7 @@ def run_chat(db, llm, body, *, timezone="America/New_York", progress=None):
                         if fields[key]==target[key]:fields[key]=getattr(actual,key)
                 result=contacts.save(db,llm,contacts.ContactBody(**fields,expected_revision=target['revision'] if target else None),
                     choice.target_id if target else None,refs)
-                answer='Saved local contact: '+result['name']+'.'
+                answer=('Updated existing contact: ' if result.get('hygiene') else 'Saved local contact: ')+result['name']+'.'
             changes.append({'contact_id':result['id'],'outcome':choice.action})
         elif choice.action == "agent_run":
             if not re.search(

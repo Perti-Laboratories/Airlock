@@ -86,7 +86,8 @@ def record(db, c, action, refs):
 
 
 def index(db,llm,c):
-    text = '\n'.join([c.name,c.email,c.phone,c.organization,c.summary,c.notes]).strip()
+    aliases=[v for values in (c.provenance or {}).get('aliases',{}).values() for v in values]
+    text = '\n'.join([c.name,c.email,c.phone,c.organization,c.summary,c.notes,*aliases]).strip()
     source = knowledge.put_source(db,key='contact:'+str(c.id),kind='contact',title=c.name,content=text,
         refs=[{'type':'contact','id':str(c.id),'revision':c.revision}])
     knowledge.index_source(db,llm,source)
@@ -94,6 +95,11 @@ def index(db,llm,c):
 
 def save(db,llm,body,ident=None,refs=None):
     refs = refs or [{'type':'local_contact_editor'}]
+    if ident is None:
+        from .contact_matching import match_new
+        matched,method,confidence=match_new(db,llm,body)
+        if matched:
+            return enrich(db,llm,matched,body,refs,method,confidence)
     def apply():
         c = find(db,ident) if ident else Contact(domain_id=DOMAIN,provenance={'owner':'airlock','schema_version':1},source_refs=refs)
         if ident and c.revision != body.expected_revision:
@@ -112,6 +118,42 @@ def save(db,llm,body,ident=None,refs=None):
         index(db,llm,c)
         return payload(db,c)
     return audited(db,'contact.save',{'id':str(ident) if ident else None},apply)
+
+
+def enrich(db,llm,c,body,refs,method,confidence):
+    from .contact_matching import append_unique
+    def apply():
+        before=payload(db,c)
+        aliases={k:list(v) for k,v in (c.provenance or {}).get('aliases',{}).items()}
+        updates={}
+        for field in ('name','email','phone','organization'):
+            incoming=getattr(body,field);current=getattr(c,field)
+            if not incoming:continue
+            if not current:updates[field]=incoming
+            elif incoming.casefold()!=current.casefold():
+                known=aliases.setdefault(field,[])
+                if incoming.casefold() not in {v.casefold() for v in known}:
+                    if len(known)>=50:raise ActionError('Contact alias limit reached. Review this contact before adding another identity.')
+                    known.append(incoming)
+        updates['summary']=append_unique(c.summary,body.summary)
+        updates['notes']=append_unique(c.notes,body.notes)
+        content_changed=any(before[k]!=v for k,v in updates.items()) or aliases!=(c.provenance or {}).get('aliases',{})
+        provenance={**c.provenance}
+        if aliases:provenance['aliases']=aliases
+        new_refs=[*c.source_refs]
+        for ref in refs:
+            if ref not in new_refs:new_refs.append(ref)
+        changed=content_changed or c.provenance!=provenance or new_refs!=c.source_refs
+        if changed:
+            for field,value in updates.items():setattr(c,field,value)
+            c.provenance=provenance;c.source_refs=new_refs[-100:];c.revision+=1
+            c.normalized_name=' '.join(c.name.casefold().split())
+            record(db,c,'enriched',refs)
+            if content_changed:index(db,llm,c)
+        result=payload(db,c)
+        result['hygiene']={'outcome':'enriched' if changed else 'already_present','matched_by':method,'confidence':confidence}
+        return result
+    return audited(db,'contact.enrich',{'contact_id':str(c.id),'matched_by':method,'confidence':confidence},apply)
 
 
 def add_interaction(db,llm,ident,body,refs=None):

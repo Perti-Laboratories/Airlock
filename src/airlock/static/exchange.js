@@ -57,8 +57,8 @@ $('#sharing-toggle').onclick=async()=>{
  finally{sharingState.busy=false;$('#sharing-result').hidden=false;renderSharingStatus();}
 };
 const todoColumns=[['backlog','Backlog'],['working','Working'],['agent_action','Agent Action'],['in_review','In Review'],['done','Done'],['archive','Archive']];
-let todoMoving=false,todoDragging=null;
-function todoColumn(t){return t.board_column||({done:'done',archived:'archive'}[t.status]||'backlog');}
+let todoMoving=false,todoDragging=null,todoRequest=0;
+function todoColumn(t){const known=todoColumns.map(([key])=>key);if(known.includes(t.board_column))return t.board_column;return ({done:'done',archived:'archive',in_progress:'working',in_review:'in_review'}[t.status]||'backlog');}
 async function moveTodo(t,column){
  if(todoMoving||column===todoColumn(t))return;
  todoMoving=true;
@@ -67,7 +67,11 @@ async function moveTodo(t,column){
  finally{todoMoving=false;}
 }
 async function refreshTodos(){
- const todos=await api('/api/todos');const target=$('#todo-list');target.replaceChildren();target.className='todo-board';
+ const request=++todoRequest;const todos=await api('/api/todos');if(request!==todoRequest)return;const target=$('#todo-list');target.replaceChildren();target.className='todo-board';
+ const finished=todos.filter(t=>['done','archive'].includes(todoColumn(t))).length;
+ const connected=todos.filter(t=>t.read_only).length;
+ $('#todo-finished-label').textContent=`Show finished (${finished})`;
+ $('#todo-summary').textContent=`${todos.length} tasks · ${connected} connected`+(finished&&!$('#todo-show-finished').checked?` · ${finished} finished hidden — enable Show finished to see them.`:'');
  const visibleColumns=todoColumns.filter(([key])=>$('#todo-show-finished').checked||!['done','archive'].includes(key));
  target.style.gridTemplateColumns='repeat('+visibleColumns.length+',minmax(220px,1fr))';
  for(const [key,title] of visibleColumns){

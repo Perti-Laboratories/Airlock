@@ -5,7 +5,7 @@ from typing import Literal
 from pydantic import Field
 from sqlalchemy import select, or_, update
 from .schemas import StrictModel
-from .memory import DOMAIN, audited, LocalMemoryCurator, restore_audit_after_rollback
+from .memory import DOMAIN, audited, LocalMemoryCurator, restore_audit_after_rollback, ActionError
 from .models import KnowledgeSource, LocalState, CalendarEvent, CalendarSource, Contact, MemoryProposal, now
 from . import knowledge, contacts
 
@@ -96,6 +96,7 @@ def extract_source(db, llm, source):
 def route_attendees(db,llm,event):
     """Provider-asserted participation only; never infer a relationship or past attendance."""
     created=0
+    review=list(event.metadata_.get('contact_review',[])) if event.metadata_.get('contacts_revision')==event.revision else []
     attendees=event.attendees or []
     cursor=(event.metadata_.get('contacts_cursor',0) if event.metadata_.get('contacts_revision')==event.revision else 0)
     for attendee in attendees[cursor:cursor+20]:
@@ -111,14 +112,14 @@ def route_attendees(db,llm,event):
         # Include deleted records: a provider refresh must not resurrect a removed person.
         existing=db.scalar(select(Contact).where(Contact.domain_id==DOMAIN,Contact.email==body.email))
         refs=[{'type':'google_calendar_attendee','event_id':str(event.id),'source_id':str(event.source_id)}]
-        if existing:
-            if existing.status=='active' and refs[0] not in existing.source_refs:
-                existing.source_refs=[*existing.source_refs,*refs][-100:]
-            continue
-        contacts.save(db,llm,body,refs=refs)
-        created+=1
+        if existing and existing.status!='active':continue
+        try:
+            result=contacts.save(db,llm,body,refs=refs)
+            created+=int(not result.get('hygiene'))
+        except ActionError as exc:
+            review.append({'name':body.name,'email':body.email,'reason':str(exc)})
     end=min(cursor+20,len(attendees))
-    metadata={**event.metadata_,'contacts_cursor':end,'contacts_revision':event.revision}
+    metadata={**event.metadata_,'contacts_cursor':end,'contacts_revision':event.revision,'contact_review':review}
     if end>=len(attendees):
         metadata['contacts_processed_revision']=event.revision
     # A concurrent provider refresh owns newer metadata. Never overwrite it with this older read.
@@ -140,7 +141,7 @@ def process_once(db,llm):
         ).order_by(CalendarEvent.updated_at).limit(1))
     if event:
         count=audited(db,'context.route_calendar_attendees',{'event_id':str(event.id)},lambda:route_attendees(db,llm,event))
-        report(db,'Calendar contacts processed locally.',operation='calendar_contact_routing',changes=[{'created':count}],source_refs=event.source_refs)
+        report(db,'Calendar contacts processed locally.'+(' Some attendees need contact review; open action details.' if event.metadata_.get('contact_review') else ''),operation='calendar_contact_routing',changes=[{'created':count,'needs_review':event.metadata_.get('contact_review',[])}],source_refs=event.source_refs)
         db.commit()
     retry=db.scalar(select(KnowledgeSource).where(KnowledgeSource.domain_id==DOMAIN,
         KnowledgeSource.kind=='contact',KnowledgeSource.status.in_(['pending','failed']),
