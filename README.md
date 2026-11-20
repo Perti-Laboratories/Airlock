@@ -104,7 +104,8 @@ Eligible messages, documents and contact notes are indexed with local embeddings
 Ollama process proposes durable memories with supporting quotations; review them in Memory before
 they become canonical facts. Google calendar participants with valid emails become local contacts
 without replacing your edits. Pause this processing in Settings & Activity → General. Restricted
-company/connector context stays outside general memory extraction. None of this enables sharing.
+company/connector context stays outside general memory extraction; only your exact original input
+can be indexed separately when a reply uses connector context. None of this enables sharing.
 
 ## Optional company knowledge prototype
 

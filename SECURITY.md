@@ -27,8 +27,9 @@ and outbound-sharing permissions for the environment where it runs.
   the signature, permission, replay cursor and lease, and reapplies current levels on every read.
   Notes and details are excluded. Incoming mirrors cannot edit source calendars, become canonical
   memory automatically, execute tools, or enter the local outbound source list. Titles and details remain editable only at their source.
-  Connector-informed chat history is excluded from subsequent model history and automatic message
-  indexing; explicitly requested local writes still follow normal local permissions.
+  Connector-informed responses are excluded from subsequent model history and automatic indexing.
+  The exact text of a user-authored message may be indexed independently, with explicit provenance
+  and no connector excerpts or response text; explicitly requested writes follow local permissions.
 - Legacy incoming availability remains a separate optional channel with generic titles only.
 - Optional company-memory contribution uses selected sources and reviewed candidates. Automatic
   company research sends bounded queries built from company topics rather than full private chat.
@@ -131,7 +132,10 @@ Only the local Memory Curator may promote a proposal into canonical memory and e
 after the user approves it. The source must still be available, unchanged and eligible at approval.
 Deleting/excluding a source withdraws its pending candidates. Rejected candidates do not reappear
 just because a job retries. Assistant-generated text is not evidence. Company-restricted sources
-and connector-informed turns remain excluded from this general memory pipeline.
+and connector-derived response/context text remain excluded from this general memory pipeline.
+The exact original user message can be processed separately, even when the answer uses connector
+context. Its source must match the stored user message byte-for-byte and carry direct-input provenance;
+this exception never applies to company-restricted turns or assistant-generated text.
 
 Calendar attendee routing uses provider fields, not model-generated identities. It ignores self
 and resource attendees, matches normalized email, preserves existing names/notes and respects

@@ -38,11 +38,15 @@ def source_eligible(db, source):
         return False
     if source.kind == 'message':
         from .models import Message
-        for ref in source.source_refs:
+        message_refs=[ref for ref in source.source_refs if ref.get('type')=='message']
+        if not message_refs:return False
+        for ref in message_refs:
             if ref.get('type') == 'message':
                 import uuid
                 message = db.get(Message, uuid.UUID(ref['id']))
-                if not message or message.sender_type != 'user' or any(message.metadata_.get(k) for k in ('company_restricted','connector_context')):
+                if not message or message.sender_type != 'user' or message.metadata_.get('company_restricted'):
+                    return False
+                if message.metadata_.get('connector_context') and not (ref.get('user_authored_only') is True and source.content==message.content):
                     return False
     return True
 

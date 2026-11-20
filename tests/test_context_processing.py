@@ -161,3 +161,26 @@ def test_task_receipt_matches_current_released_fields(workspace):
         from airlock.models import Todo
         db.get(Todo,uuid.UUID(t['id'])).due_at=due+timedelta(days=1)
         assert 'pending' in todos.list_todos(db)[0]['sharing_status']
+
+
+def test_exact_user_input_can_be_processed_without_reusing_connector_context(workspace):
+    _,llm,sessions,_=workspace;decision(llm)
+    from airlock.chat import conversation
+    from airlock.models import Message
+    with sessions() as db:
+        text='My preferred project notebook is Juniper.'
+        msg=Message(conversation_id=conversation(db).id,sender_type='user',content=text,metadata_={'connector_context':True})
+        db.add(msg);db.flush()
+        s=source(db,kind='message',text=text)
+        s.source_refs=[{'type':'message','id':str(msg.id),'user_authored_only':True}]
+        extract_source(db,llm,s)
+        assert db.scalar(select(MemoryProposal)) is not None
+        assert llm.contexts[-1]=={'source_kind':'message','passage':text}
+        s2=source(db,kind='message',text=text+' CONNECTOR_PRIVATE_MARKER')
+        s2.source_refs=s.source_refs
+        extract_source(db,llm,s2)
+        assert s2.extraction_status=='excluded'
+        msg.metadata_={'connector_context':True,'company_restricted':True}
+        s3=source(db,kind='message',text=text);s3.source_refs=s.source_refs
+        extract_source(db,llm,s3)
+        assert s3.extraction_status=='excluded'

@@ -149,7 +149,10 @@ def test_disconnect_reconnect_requires_new_permission_and_mirrors_reach_chat(exc
     with sessions() as db:
         messages=list(db.scalars(select(Message)))
         assert any(m.sender_type=='assistant' and m.metadata_.get('connector_context') for m in messages)
-        assert db.scalar(select(KnowledgeSource).where(KnowledgeSource.kind=='message')) is None
+        sources=list(db.scalars(select(KnowledgeSource).where(KnowledgeSource.kind=='message')))
+        assert len(sources)==1 and sources[0].content=='What is on my to-do list?'
+        assert sources[0].source_refs[0]['user_authored_only'] is True
+        assert all('Prepare plan' not in source.content for source in sources)
     assert c.put('/api/exchange',json={'enabled':False,'allow_availability':False}).status_code==200
     assert c.get('/api/todos').json()==[]
     assert c.put('/api/exchange',json={'enabled':True,'allow_availability':False}).status_code==200

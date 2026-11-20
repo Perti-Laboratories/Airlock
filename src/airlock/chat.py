@@ -504,9 +504,9 @@ def run_chat(db, llm, body, *, timezone="America/New_York", progress=None):
             changes.append(change)
         step('save','Save local response and action report','running')
         indexing = None
-        if choice.action not in {'correct','forget','contact_update','contact_delete','todo_delete','calendar_cancel'} and not company_restricted and not connector_context:
+        if choice.action not in {'correct','forget','contact_update','contact_delete','todo_delete','calendar_cancel'} and not company_restricted:
             source=knowledge.put_source(db,key='message:'+str(user.id),kind='message',
-                title=body.message[:100],content=body.message,refs=refs)
+                title=body.message[:100],content=body.message,refs=[{**ref,'user_authored_only':True} for ref in refs])
             knowledge.index_source(db,llm,source)
             indexing=source.status
         elif choice.action in {'correct','forget','contact_update','contact_delete','todo_delete','calendar_cancel'}:
