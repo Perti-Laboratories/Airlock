@@ -22,7 +22,12 @@ attendee contact routing, explicit task release/delivery status, and red Externa
 (issue #23). Proposals need user review; existing explicit chat actions still route calendar, task
 and contact changes. Company/connector restrictions and external allowlists are unchanged.
 
+Local 0.13 adds safe basic Markdown, clarifies the company-search toggle, surfaces hidden/connected
+task counts and applies local identity/semantic hygiene to every new contact intake (issue #25).
+
 Next work:
+
+- Dedicated contact ambiguity review and reversible merge UI; reconciliation of existing duplicates.
 
 - Validate installation, sleep/offline recovery and sustained use on additional physical Macs.
 - Signed/notarized distribution, dependency review and managed deployment guidance.

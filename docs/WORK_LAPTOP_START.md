@@ -181,3 +181,14 @@ paired installation. Refresh the browser after updating.
   Contacts. Sync again to confirm no duplicate. Existing contact notes must remain intact.
 - **Settings & Activity → General → Process local context automatically** pauses/resumes the
   extraction and attendee-routing worker. Background catch-up is gradual, especially on large calendars.
+
+
+## Local 0.13 acceptance checks
+
+After the normal update, reload the app and confirm version 0.13.0. Existing pairing and Google
+sign-in stay in place. Ask chat to use **bold text**, bullets and inline code. “Skip company search”
+only skips the optional company-memory service for that turn; local models remain the only models.
+On To-dos, confirm the connected-task count and turn on Show finished to inspect Done/Archive.
+Add a synthetic contact, then add the same email with a new note: one contact should contain both
+notes. A plausible nickname may use local semantic matching; unclear identity should request details.
+Remove the synthetic contact when finished. No new sharing permissions are required by this update.

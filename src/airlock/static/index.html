@@ -6,6 +6,7 @@
   <link rel="icon" href="/static/icon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="/static/style.css">
   <script defer src="/static/research.js"></script>
+  <script defer src="/static/markdown.js"></script>
   <script defer src="/static/app.js"></script>
   <script defer src="/static/calendar-layout.js"></script>
   <script defer src="/static/workspace.js"></script>
@@ -16,7 +17,7 @@
 </head>
 <body>
   <aside class="sidebar">
-    <a class="brand" href="/"><img src="/static/icon.svg" alt="" width="32" height="32">airlock<span>0.12.0</span></a>
+    <a class="brand" href="/"><img src="/static/icon.svg" alt="" width="32" height="32">airlock<span>0.13.0</span></a>
     <nav aria-label="Main navigation">
       <button class="nav active" data-view="chat"><span>◉</span> Chat</button>
       <button class="nav" data-view="calendar"><span>▦</span> Calendar</button>
@@ -39,7 +40,7 @@
         <div id="transcript" class="transcript" aria-live="polite" aria-label="Assistant feed">
           <div id="welcome" class="welcome"><p>Ask a question, save a memory, or update your items.</p><div class="starters"><button data-prompt="Remember that I prefer short morning meetings.">Remember a preference <span>↗</span></button><button data-prompt="What do you remember about my preferences?">Recall something <span>↗</span></button></div></div>
         </div>
-        <div id="chat-progress" class="chat-progress" role="status" aria-live="polite" aria-label="Research progress" hidden></div><div class="composer-wrap"><div id="thinking" class="thinking" role="status" hidden><span class="spinner"></span>Thinking locally…</div><form id="chat-form" class="composer"><input id="chat-upload" type="file" accept=".txt,.md,.csv,.pdf,.docx,.eml" hidden><div id="chat-attachments" hidden></div><p id="upload-status" role="status" hidden></p><label class="sr-only" for="message">Message Airlock</label><textarea id="message" rows="2" placeholder="Message Airlock…" maxlength="8000" required></textarea><div class="composer-bottom"><div class="composer-tools"><button id="upload-document" type="button" aria-label="Attach document" title="Attach document · PDF, DOCX, TXT, MD, CSV or EML · up to 2 MB">+</button><label class="local-only"><input id="chat-local-only" type="checkbox">Local only</label><span id="model-label">Ollama · local inference</span></div><button id="send" type="submit" aria-label="Send message">↑</button></div></form></div>
+        <div id="chat-progress" class="chat-progress" role="status" aria-live="polite" aria-label="Research progress" hidden></div><div class="composer-wrap"><div id="thinking" class="thinking" role="status" hidden><span class="spinner"></span>Thinking locally…</div><form id="chat-form" class="composer"><input id="chat-upload" type="file" accept=".txt,.md,.csv,.pdf,.docx,.eml" hidden><div id="chat-attachments" hidden></div><p id="upload-status" role="status" hidden></p><label class="sr-only" for="message">Message Airlock</label><textarea id="message" rows="2" placeholder="Message Airlock…" maxlength="8000" required></textarea><div class="composer-bottom"><div class="composer-tools"><button id="upload-document" type="button" aria-label="Attach document" title="Attach document · PDF, DOCX, TXT, MD, CSV or EML · up to 2 MB">+</button><label class="local-only" title="Skip company-memory searches for this message. All models always run locally. This does not pause connector or calendar sync."><input id="chat-local-only" type="checkbox">Skip company search</label><span id="model-label">Ollama · local inference</span></div><button id="send" type="submit" aria-label="Send message">↑</button></div></form></div>
       </div>
       <aside class="context-panel"><div class="panel-heading"><h2>Memory</h2><button id="open-memory" class="text-button">View all ↗</button></div><p class="muted">Useful details, kept for next time.</p><div id="pending-summary" hidden></div><div id="memory-preview"></div></aside>
     </section>
@@ -94,7 +95,7 @@
   <div id="release-preview"></div>
 </section>
 
-<section id="todos-view" class="page-view" hidden><div class="page-intro"><div><h2>To-dos</h2><p>Your tasks, kept in one place.</p></div><button id="add-todo" class="primary">Add to-do</button><button id="refresh-todos" class="secondary">Refresh</button></div><label class="todo-finished-toggle"><input type="checkbox" id="todo-show-finished"> Show finished</label><div id="todo-list"></div></section>
+<section id="todos-view" class="page-view" hidden><div class="page-intro"><div><h2>To-dos</h2><p>Your tasks, kept in one place.</p></div><button id="add-todo" class="primary">Add to-do</button><button id="refresh-todos" class="secondary">Refresh</button></div><label class="todo-finished-toggle"><input type="checkbox" id="todo-show-finished"> <span id="todo-finished-label">Show finished</span></label><p id="todo-summary" class="muted" role="status"></p><div id="todo-list"></div></section>
 
 
 

@@ -100,7 +100,8 @@ def test_contacts_interactions_retrieval_and_deletion(workspace):
     assert response.status_code==200,response.text
     person=response.json()['result'];ident=person['id']
     assert person['email']=='alex@example.test'
-    assert c.post('/api/contacts',json={'name':'Duplicate','email':'alex@example.test'}).status_code==409
+    duplicate=c.post('/api/contacts',json={'name':'Alex Example','email':'alex@example.test'})
+    assert duplicate.status_code==200 and duplicate.json()['result']['id']==ident
     assert c.put('/api/contacts/'+ident,json={'name':'Alex Example','expected_revision':99}).status_code==409
     response=c.post('/api/contacts/'+ident+'/interactions',json={'interaction_type':'call','occurred_at':'2026-10-22T15:00:00Z','summary':'Discussed the fictional Cedar rollout.','expected_revision':1})
     assert response.status_code==200,response.text
