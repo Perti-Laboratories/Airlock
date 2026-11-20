@@ -121,3 +121,22 @@ These checks do not protect against compromise of the trusted repository or repl
 Maintainers refresh locks with `scripts/lock_dependencies.py`, which checks the dependency closure
 and rejects versions with advisories listed by PyPI. This is a point-in-time check, not a guarantee
 against undiscovered vulnerabilities.
+
+## Automatic local context processing
+
+Local 0.12 processes eligible user messages, uploaded documents and contact interaction notes
+with local Ollama only. Source passages are embedded for retrieval. Extraction is bounded to one
+passage per worker cycle, requires exact supporting quotations and creates reviewable proposals.
+Only the local Memory Curator may promote a proposal into canonical memory and embed that memory,
+after the user approves it. The source must still be available, unchanged and eligible at approval.
+Deleting/excluding a source withdraws its pending candidates. Rejected candidates do not reappear
+just because a job retries. Assistant-generated text is not evidence. Company-restricted sources
+and connector-informed turns remain excluded from this general memory pipeline.
+
+Calendar attendee routing uses provider fields, not model-generated identities. It ignores self
+and resource attendees, matches normalized email, preserves existing names/notes and respects
+deleted-contact tombstones. It records invitation provenance; an invitation does not prove attendance
+or authorize creating a meeting interaction. Contacts, candidates and source text never enter the
+external planning protocol. Inferred to-dos/events are not silently executed from source documents;
+chat's existing explicit-action validation remains in force. Disable processing under Settings &
+Activity → General; existing memory and record data remain. This option does not enable sharing.

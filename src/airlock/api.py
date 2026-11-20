@@ -298,7 +298,8 @@ def create_app(settings=None, *, llm=None, sessions=None, google=None):
             rows = db.scalars(select(MemoryProposal).where(MemoryProposal.domain_id == DOMAIN,
                               MemoryProposal.status == "pending_user_approval").order_by(MemoryProposal.created_at)).all()
             return [{"id": str(p.id), "title": p.title, "content": p.content, "impact_level": p.impact_level,
-                     "memory_type": p.memory_type, "source_refs": p.source_refs} for p in rows]
+                     "memory_type": p.memory_type, "source_refs": p.source_refs,
+                     "evidence":p.metadata_.get("evidence"),"source_id":p.metadata_.get("extracted_source_id")} for p in rows]
 
     @app.post("/api/proposals/{proposal_id}/{decision}")
     def review(proposal_id: uuid.UUID, decision: str):

@@ -13,6 +13,10 @@ from . import contacts, knowledge
 from .document_parser import extract_isolated, MAX_FILE
 
 
+class ContextOptions(StrictModel):
+    enabled: bool
+
+
 class ModelChoice(StrictModel):
     model: str = Field(min_length=1,max_length=120)
 
@@ -27,6 +31,21 @@ def attach_knowledge_routes(app,sessions,writer,llm):
         r=report(db,'Local '+operation+' completed.',operation=operation,changes=[result],source_refs=[])
         db.commit()
         return {'report_id':str(r.id),'result':result}
+
+    @app.get('/api/context-processing')
+    def context_status():
+        from sqlalchemy import func
+        from .models import MemoryProposal
+        with sessions() as db:
+            return {'enabled':db.get(LocalState,1).automatic_context,
+                'pending_candidates':db.scalar(select(func.count()).select_from(MemoryProposal).where(
+                    MemoryProposal.domain_id==DOMAIN,MemoryProposal.status=='pending_user_approval'))}
+
+    @app.put('/api/context-processing')
+    def context_options(body:ContextOptions):
+        with writer() as db:
+            audited(db,'context.preference',body.model_dump(),lambda:setattr(db.get(LocalState,1),'automatic_context',body.enabled))
+            return recorded(db,'context_preference',{'enabled':body.enabled})
 
     @app.get('/api/models')
     def models():

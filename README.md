@@ -98,6 +98,14 @@ then `python3.13 scripts/update_work_laptop.py`. The updater backs up the databa
 supervision and owned processes, applies only a fast-forward release, migrates, checks readiness,
 and restores login startup if previously enabled. Keep backups on an approved local encrypted disk.
 
+## Automatic local context
+
+Eligible messages, documents and contact notes are indexed with local embeddings. A background
+Ollama process proposes durable memories with supporting quotations; review them in Memory before
+they become canonical facts. Google calendar participants with valid emails become local contacts
+without replacing your edits. Pause this processing in Settings & Activity → General. Restricted
+company/connector context stays outside general memory extraction. None of this enables sharing.
+
 ## Optional company knowledge prototype
 
 A separate, opt-in company-memory connection can contribute reviewed memory candidates and retrieve

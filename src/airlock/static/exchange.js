@@ -88,10 +88,10 @@ async function refreshTodos(){
     if(t.board_move_status)card.append(el('small','',({pending:'Move pending',applied:'Move synced',conflict:'Changed elsewhere — try again',rejected:'Move not permitted — sync and retry',expired:'Move expired — try again'}[t.board_move_status])));
    }else{
     const approved=t.release_title&&t.release_revision===t.revision;
-    card.append(el('small','muted',approved?'Sharing reviewed title':t.release_title?'Review needed':'Private'));
+    card.append(el('small','muted',t.sharing_status||(approved?'Title approved · delivery pending':t.release_title?'Private — title needs review again':'Private — approve a title to sync')));
     card.append(button('Details',()=>editTodo(t),'text-button'));
     const actions=el('details','todo-card-actions');actions.append(el('summary','','Sharing & actions'));
-    actions.append(button('Review release',()=>{todoEditing=t;$('#todo-release-title').value=t.release_title||'';$('#todo-release-due').checked=t.release_due;$('#todo-release-name').textContent=t.title;$('#todo-release-dialog').showModal();},'text-button'));
+    actions.append(button('Review release',()=>{todoEditing=t;$('#todo-release-title').value=t.release_title||t.title.slice(0,160);$('#todo-release-due').checked=t.release_due;$('#todo-release-name').textContent=t.title;$('#todo-release-dialog').showModal();},'text-button'));
     actions.append(button('Delete',()=>{todoEditing=t;$('#todo-delete-name').textContent=t.title;$('#todo-delete-dialog').showModal();},'text-button'));card.append(actions);
    }
    if(movable||pending){const label=el('label','todo-move-label','Move to');const select=el('select','');select.setAttribute('aria-label','Move '+t.title+' to');for(const [value,text]of todoColumns){const o=el('option','',text);o.value=value;select.append(o);}select.value=todoColumn(t);select.disabled=pending;select.addEventListener('change',()=>void moveTodo(t,select.value));label.append(select);card.append(label);}

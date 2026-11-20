@@ -14,7 +14,7 @@ async function refreshCalendar(){
   const start=CalendarLayout.addDays(days[0],-1)+'T00:00:00Z',end=CalendarLayout.addDays(days.at(-1),2)+'T00:00:00Z';
   const result=await api(`/api/calendar?start=${encodeURIComponent(start)}&end=${encodeURIComponent(end)}`);
   if(request!==calendarState.request)return;
-  calendarState.events=result.events;calendarState.sources=result.sources;
+  calendarState.events=result.events;calendarState.sources=result.sources;calendarState.externalEnabled=!!result.incoming_availability?.enabled;
   $('#incoming-availability-status').textContent=result.incoming_availability?.enabled?(result.incoming_availability.stale?'Incoming availability is stale. Missing blocks do not mean you are free.':'Incoming availability is current until '+new Date(result.incoming_availability.expires_at).toLocaleString()+'.'):'';
   if(result.incoming_records?.enabled&&result.incoming_records.stale)$('#incoming-availability-status').textContent+=' Connected planner records are stale; missing items do not mean you are free.';
   renderCalendar();renderSources();
@@ -27,6 +27,7 @@ function renderCalendar(){
   $('#calendar-prev').setAttribute('aria-label','Previous '+view);$('#calendar-next').setAttribute('aria-label','Next '+view);
   const legend=$('#calendar-legend');legend.replaceChildren();
   const sources=new Map([['local',CalendarLayout.source({source:'local'})]]);
+  if(calendarState.externalEnabled)sources.set('availability',CalendarLayout.source({source:'connector'}));
   for(const s of calendarState.sources)sources.set(s.id,CalendarLayout.source({source:'google',source_id:s.id},calendarState.sources));
   for(const e of calendarState.events){const s=CalendarLayout.source(e,calendarState.sources);sources.set(s.key,s);}
   for(const s of sources.values()){const tag=el('span','source-legend',s.label);tag.style.setProperty('--source-color',s.color);legend.append(tag);}

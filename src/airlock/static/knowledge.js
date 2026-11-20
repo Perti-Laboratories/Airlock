@@ -2,6 +2,7 @@
 let chatAttachments=[],editingContact=null,pendingRemoval=null;
 async function refreshModels(){
  await refreshPower();
+ await refreshContextProcessing();
  const d=await api('/api/models');const select=$('#chat-model-choice');select.replaceChildren();
  for(const m of d.choices){const option=el('option','',m.name);option.value=m.name;select.append(option);}
  select.value=d.model;$('#save-model').disabled=!d.choices.length;
@@ -27,7 +28,7 @@ $('#chat-upload').onchange=async()=>{
 async function showSource(id){const s=await api('/api/knowledge/'+id);$('#source-title').textContent=s.title;$('#source-content').textContent=s.content;$('#source-detail').showModal();}
 function confirmRemoval(title,note,action){pendingRemoval=action;$('#knowledge-delete-title').textContent=title;$('#knowledge-delete-note').textContent=note;$('#knowledge-delete').showModal();}
 $('#knowledge-delete-confirm').onclick=async()=>{try{await pendingRemoval();$('#knowledge-delete').close();}catch(e){banner(e.message);}};
-async function refreshSources(){const sources=await api('/api/knowledge');const node=$('#source-list');node.replaceChildren();for(const s of sources){const card=el('article','control-card');card.append(el('span','memory-type',s.kind),el('h3','',s.title),el('p','muted',s.status+' · '+s.chunks+' passages'+(s.error?' · '+s.error:'')),button('Read source',()=>showSource(s.id),'secondary'));
+async function refreshSources(){const sources=await api('/api/knowledge');const node=$('#source-list');node.replaceChildren();for(const s of sources){const card=el('article','control-card');card.append(el('span','memory-type',s.kind),el('h3','',s.title),el('p','muted',s.status+' · '+s.chunks+' passages'+(s.error?' · '+s.error:'')+(['message','document','interaction'].includes(s.kind)?' · memory extraction '+s.extraction_status+(s.extraction_error?' · '+s.extraction_error:''):'')),button('Read source',()=>showSource(s.id),'secondary'));
  if(s.status!=='ready')card.append(button('Retry indexing',async()=>{await api('/api/knowledge/'+s.id+'/retry','POST');await refreshSources();},'secondary'));
  if(!['contact','interaction'].includes(s.kind))card.append(button('Remove from retrieval',()=>confirmRemoval('Remove this source?',s.title+' — removes searchable text and vectors. Historical conversations and reports are retained.',async()=>{await api('/api/knowledge/'+s.id,'DELETE');chatAttachments=chatAttachments.filter(a=>a.id!==s.id);renderAttachments();await refreshSources();}),'text-button'));
  node.append(card);}if(!sources.length)node.append(el('div','empty-card','No sources yet. Attach a document in Chat to get started.'));}
@@ -74,3 +75,10 @@ $('#keep-syncing').onchange=async()=>{
  try{await api('/api/power','PUT',{enabled});}catch(e){banner(e.message);}
  finally{await refreshPower().catch(e=>{input.disabled=false;banner(e.message);});}
 };
+
+async function refreshContextProcessing(){
+ const value=await api('/api/context-processing');
+ $('#automatic-context').checked=value.enabled;
+ $('#context-processing-status').textContent=(value.enabled?'Processing locally. ':'Paused. ')+value.pending_candidates+' memory candidates awaiting review.';
+}
+$('#automatic-context').onchange=async()=>{const node=$('#automatic-context');node.disabled=true;try{await api('/api/context-processing','PUT',{enabled:node.checked});await refreshContextProcessing();}catch(e){banner(e.message);}finally{node.disabled=false;}};

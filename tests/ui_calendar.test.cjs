@@ -31,3 +31,7 @@ test('source colors are stable across reorder and labels distinguish both incomi
  assert.notEqual(cal.source({source:'connector',origin:'recipient'}).key,cal.source({source:'connector',origin:'availability'}).key);
  assert.notEqual(cal.source(a,s).color,cal.source({source:'connector',origin:'recipient'}).color);
 });
+test('generic external availability is red and distinct from connected domain records',()=>{
+ assert.deepEqual(cal.source({source:'connector',origin:'availability'}),{key:'availability',label:'External',color:'#c53030'});
+ assert.notEqual(cal.source({source:'connector',origin:'recipient'}).color,'#c53030');
+});
