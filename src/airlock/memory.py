@@ -139,6 +139,26 @@ class LocalMemoryCurator:
             self.db.add(MemoryLink(source_memory_id=item.id, target_memory_id=old.id, relation_type="supersedes"))
         return {"outcome": result.outcome, "memory_id": str(item.id) if item else None}
 
+    def propose_extracted(self, candidate, source):
+        """Automatic extraction proposes; only explicit review promotes to canonical memory."""
+        digest = hashlib.sha256((candidate.memory_type+'\n'+candidate.content.casefold()).encode()).hexdigest()
+        if self.db.scalar(select(MemoryProposal.id).where(MemoryProposal.domain_id==DOMAIN,
+                MemoryProposal.metadata_['extraction_digest'].as_string()==digest).limit(1)):
+            return False  # Includes rejected candidates; retries cannot nag or resurrect them.
+        if self.db.scalar(active_query().where(MemoryItem.content==candidate.content)):
+            return False
+        def write():
+            self.db.add(MemoryProposal(domain_id=DOMAIN,scope='domain',memory_type=candidate.memory_type,
+                title=candidate.title,content=candidate.content,impact_level='low',status='pending_user_approval',
+                rationale='Automatically extracted from local evidence. Review before saving.',
+                source_refs=[{'type':'knowledge_source','id':str(source.id)},*source.source_refs],
+                metadata_={'curator':'airlock-local','extracted_source_id':str(source.id),
+                    'extracted_source_hash':source.content_hash,'evidence':candidate.evidence,
+                    'extraction_digest':digest}))
+            self.db.flush()
+        audited(self.db,'memory.propose_extracted',{'source_id':str(source.id)},write)
+        return True
+
     def review(self, proposal_id, approve):
         p = self.db.scalar(select(MemoryProposal).where(MemoryProposal.id == proposal_id, MemoryProposal.domain_id == DOMAIN))
         if p is None or p.status != "pending_user_approval":
@@ -146,6 +166,13 @@ class LocalMemoryCurator:
         if not approve:
             audited(self.db, "memory.reject", {"proposal_id": str(p.id)}, lambda: self.service.reject_proposal(p.id))
             return {"outcome": "rejected", "proposal_id": str(p.id)}
+        if p.metadata_.get('extracted_source_id'):
+            from .models import KnowledgeSource
+            from .context_processing import source_eligible
+            source=self.db.get(KnowledgeSource,uuid.UUID(p.metadata_['extracted_source_id']))
+            if (not source or not source_eligible(self.db,source) or
+                    source.content_hash!=p.metadata_.get('extracted_source_hash')):
+                raise ActionError('The source changed or is no longer eligible. Reject this stale candidate.')
         old = self.get_active(uuid.UUID(p.metadata_["replaces"])) if p.metadata_.get("replaces") else None
         if old and old.updated_at.isoformat() != p.metadata_.get("replaces_updated_at"):
             raise ActionError("The original memory changed. Reject this proposal and make a new correction.")

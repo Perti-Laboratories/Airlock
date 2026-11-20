@@ -17,6 +17,11 @@ AC-only keep-awake without screen-lock changes. Local 0.11 / connector 0.9 harde
 expiry and cancellation, patch dependency advisories, verify package hashes, pin the database image
 and require the official HTTPS update origin (issue #21).
 
+Local 0.12 adds evidence-backed local memory proposals and source embeddings, automatic Google
+attendee contact routing, explicit task release/delivery status, and red External availability
+(issue #23). Proposals need user review; existing explicit chat actions still route calendar, task
+and contact changes. Company/connector restrictions and external allowlists are unchanged.
+
 Next work:
 
 - Validate installation, sleep/offline recovery and sustained use on additional physical Macs.

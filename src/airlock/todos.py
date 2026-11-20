@@ -60,7 +60,37 @@ def find(db, ident):
 
 def list_todos(db):
     from .record_exchange import todo_overlays
-    return [payload(t) for t in db.scalars(select(Todo).where(Todo.domain_id==DOMAIN,Todo.deleted.is_(False)).order_by(Todo.created_at))] + todo_overlays(db)
+    rows=list(db.scalars(select(Todo).where(Todo.domain_id==DOMAIN,Todo.deleted.is_(False)).order_by(Todo.created_at)))
+    from .releases import policy_payload
+    from .models import ExchangeState, ExportIdentity
+    from airlock_contracts import ReleaseSnapshot
+    policy=policy_payload(db)
+    state=db.get(ExchangeState,DOMAIN)
+    delivered={}
+    if state and state.outbox and state.revision==state.acknowledged_revision:
+        snapshot=ReleaseSnapshot.model_validate_json(state.outbox['document'])
+        if snapshot.expires_at>now():
+            delivered={str(i.export_id):i.model_dump(mode='json') for i in snapshot.items if i.kind=='todo'}
+    results=[]
+    for t in rows:
+        result=payload(t)
+        label='Private — approve a title to sync'
+        if t.release_title and t.release_revision!=t.revision:
+            label='Private — title needs review again'
+        elif t.release_title:
+            if not state or not state.enabled:label='Title approved · connection off'
+            elif policy['paused']:label='Title approved · sharing paused'
+            elif policy['type_rules']['todo']=='private':label='Title approved · to-do sharing off'
+            else:
+                identity=db.get(ExportIdentity,'todo:'+str(t.id))
+                item=delivered.get(str(identity.export_id)) if identity else None
+                due=t.due_at.isoformat().replace('+00:00','Z') if t.due_at and t.release_due and policy['type_rules']['todo']=='title_due' else None
+                matches=item and item['title']==t.release_title and item['status']==(t.status if t.status in ('done','archived') else 'open') and item.get('due_at')==due
+                label='Released to connector' if matches else 'Title approved · delivery pending'
+                if state.error:label='Title approved · sync needs attention'
+        result['sharing_status']=label
+        results.append(result)
+    return results + todo_overlays(db)
 
 
 def save(db,body,ident=None,refs=None):

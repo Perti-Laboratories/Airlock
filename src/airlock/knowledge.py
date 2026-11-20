@@ -40,6 +40,8 @@ def put_source(db, *, key, kind, title, content, refs):
         db.add(source)
     else:
         db.execute(delete(KnowledgeChunk).where(KnowledgeChunk.source_id == source.id))
+    source.extraction_hash, source.extraction_cursor = None, 0
+    source.extraction_status, source.extraction_error, source.extraction_retry_at = 'pending', None, None
     source.title, source.content, source.content_hash = title[:240], content, digest
     source.source_refs, source.status, source.error = refs, 'pending', None
     db.flush()
@@ -72,6 +74,7 @@ def index_source(db, llm, source):
 def payload(db, source, include_content=False):
     from sqlalchemy import func
     value = {'id': str(source.id), 'kind': source.kind, 'title': source.title, 'status': source.status,
+        'extraction_status': source.extraction_status, 'extraction_error': source.extraction_error,
         'error': source.error, 'source_refs': source.source_refs, 'created_at': source.created_at.isoformat(),
         'chunks': db.scalar(select(func.count()).select_from(KnowledgeChunk).where(KnowledgeChunk.source_id == source.id))}
     if include_content:
@@ -89,6 +92,8 @@ def find(db, ident):
 def remove(db, source):
     def work():
         db.execute(delete(KnowledgeChunk).where(KnowledgeChunk.source_id == source.id))
+        from .context_processing import withdraw_candidates
+        withdraw_candidates(db,source)
         source.status, source.content, source.error = 'removed', '', None
         db.get(LocalState, 1).context_reset_at = now()
     audited(db, 'knowledge.remove', {'source_id': str(source.id)}, work)
@@ -99,6 +104,8 @@ def exclude_message_history(db):
     ids = select(KnowledgeSource.id).where(KnowledgeSource.domain_id == DOMAIN, KnowledgeSource.kind == 'message')
     db.execute(delete(KnowledgeChunk).where(KnowledgeChunk.source_id.in_(ids)))
     for row in db.scalars(select(KnowledgeSource).where(KnowledgeSource.id.in_(ids), KnowledgeSource.status != 'removed')):
+        from .context_processing import withdraw_candidates
+        withdraw_candidates(db,row)
         row.status = 'excluded'
 
 

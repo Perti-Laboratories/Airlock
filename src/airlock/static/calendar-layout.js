@@ -38,7 +38,7 @@ const CalendarLayout = (() => {
     for(const row of rows){if(row.start>=until){finish();until=-1;}group.push(row);until=Math.max(until,row.end,row.start+12);}finish();return rows;
   }
   function source(event,sources=[]) {
-    if(event.source==='connector')return event.origin==='recipient'?{key:'incoming',label:'Incoming · connected planner',color:'#8056a4'}:{key:'availability',label:'Incoming · availability',color:'#64748b'};
+    if(event.source==='connector')return event.origin==='recipient'?{key:'incoming',label:'Incoming · connected planner',color:'#8056a4'}:{key:'availability',label:'External',color:'#c53030'};
     if(event.source==='google'){
       const id=event.source_id||'google';let hash=0;for(const ch of id)hash=(hash*31+ch.charCodeAt(0))>>>0;
       const palette=['#2563a6','#a85025','#287b85','#a0376b','#6b65ad','#7c7026'];

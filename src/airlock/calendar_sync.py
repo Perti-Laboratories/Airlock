@@ -211,7 +211,8 @@ def sync_source(db, google, source):
         event.last_synced_at = now()
         event.sync_status = "synced"
         event.source_refs = route["source_refs"]
-        event.attendees = meta.get("attendees", [])
+        resources={a.get('email') for a in raw.get('attendees',[]) if a.get('resource')}
+        event.attendees = [{**a,'resource':a.get('email') in resources} for a in meta.get('attendees',[])]
         event.metadata_ = {
             "recurring_event_id": raw.get("recurringEventId"),
             "original_start": raw.get("originalStartTime"),

@@ -16,7 +16,7 @@
 </head>
 <body>
   <aside class="sidebar">
-    <a class="brand" href="/"><img src="/static/icon.svg" alt="" width="32" height="32">airlock<span>0.8.0</span></a>
+    <a class="brand" href="/"><img src="/static/icon.svg" alt="" width="32" height="32">airlock<span>0.12.0</span></a>
     <nav aria-label="Main navigation">
       <button class="nav active" data-view="chat"><span>◉</span> Chat</button>
       <button class="nav" data-view="calendar"><span>▦</span> Calendar</button>
@@ -108,6 +108,7 @@
   <button id="tab-activity" role="tab" data-settings="activity" aria-controls="activity-view" aria-selected="false" tabindex="-1">Activity</button>
 </div>
 <section id="models-view" class="settings-panel" role="tabpanel" aria-labelledby="tab-models">
+  <article class="control-card"><h3>Local context</h3><label class="checkbox"><input type="checkbox" id="automatic-context"> Process local context automatically</label><p class="muted">Suggest memories from local messages, documents and contact notes. Review candidates in Memory. Calendar attendees become local contacts. Nothing here enables sharing.</p><p id="context-processing-status" role="status"></p></article>
   <article class="control-card"><h3>Background sync</h3><label class="checkbox"><input type="checkbox" id="keep-syncing" disabled> Keep syncing while plugged in</label><p class="muted">Keeps the Mac awake on power. Screen lock and display sleep stay unchanged. Closing the lid, explicit sleep, shutdown or loss of connectivity can still pause syncing.</p><p id="power-status" role="status"></p></article>
   <form id="model-form" class="control-card"><div class="panel-heading"><h3>Local model</h3><button id="refresh-models" type="button" class="text-button">Refresh models</button></div><label for="chat-model-choice">Chat &amp; agents</label><div class="inline-controls"><select id="chat-model-choice" required></select><button id="save-model" class="primary">Save model</button></div><p id="model-choice-status" role="status"></p><p id="embedding-choice" class="muted"></p><details class="inline-help"><summary>Add another model</summary><p>Install it in Ollama, then refresh this list. Changing the chat model preserves your memory.</p></details></form>
 </section>

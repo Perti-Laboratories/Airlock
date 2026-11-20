@@ -162,3 +162,22 @@ Lock the screen normally and leave the lid open. After the next polling interval
 connector's last receipt advances. Unplug and confirm Airlock reports normal battery sleep behavior.
 Disable the setting and verify normal sleep resumes. Also test explicit sleep/wake: no sync is
 expected during actual sleep, and data should catch up afterward. Do not change workplace lock rules.
+
+## Local 0.12 follow-up checks
+
+Use the managed updater above; no new setup code or Google sign-in is needed for an existing
+paired installation. Refresh the browser after updating.
+
+- A new task should say **Private — approve a title to sync**. Open **Sharing & actions → Review
+  release**, review the prefilled title, and save. Notes are never included. Connection enablement,
+  unpaused sharing and the To-dos type level must also allow it. “Released to connector” is a
+  connector receipt, not proof that a separate planner has rendered the task.
+- Enable incoming availability and confirm the red **External** legend and **Unavailable** blocks.
+  The receiving planner selects other source domains; exclude the node's own domain and all
+  returned projections to avoid echoing them.
+- Upload a synthetic note with a durable fact. Sources shows extraction progress; Memory shows
+  a candidate with an exact quotation and source link. Approve it and ask about the fact in chat.
+- Import a synthetic Google event with a participant email. After background processing, check
+  Contacts. Sync again to confirm no duplicate. Existing contact notes must remain intact.
+- **Settings & Activity → General → Process local context automatically** pauses/resumes the
+  extraction and attendee-routing worker. Background catch-up is gradual, especially on large calendars.

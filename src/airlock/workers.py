@@ -49,6 +49,9 @@ class LocalWorker:
         try:
             tick_schedules(self.sessions)
             process_next(self.sessions, self.llm)
+            from .context_processing import process_once
+            with self.sessions() as db:
+                process_once(db,self.llm)
             from .company import extract_once
             with self.sessions() as db:
                 extract_once(db, self.llm)

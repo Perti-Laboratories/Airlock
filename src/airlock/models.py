@@ -138,6 +138,7 @@ class ToolCall(DomainRecord, Base):
 
 
 class LocalState(Base):
+    automatic_context: Mapped[bool] = mapped_column(Boolean, default=True, server_default="true")
     __tablename__ = "local_state"
     id: Mapped[int] = mapped_column(Integer, primary_key=True, default=1)
     context_reset_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
@@ -146,6 +147,11 @@ class LocalState(Base):
 
 
 class KnowledgeSource(DomainRecord, TimestampMixin, Base):
+    extraction_hash: Mapped[str | None] = mapped_column(String(64))
+    extraction_cursor: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
+    extraction_status: Mapped[str] = mapped_column(String(40), default="pending", server_default="pending")
+    extraction_error: Mapped[str | None] = mapped_column(String(240))
+    extraction_retry_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     company_restricted: Mapped[bool] = mapped_column(Boolean, default=False)
     __tablename__ = 'knowledge_sources'
     __table_args__ = (UniqueConstraint('domain_id', 'source_key'),)
